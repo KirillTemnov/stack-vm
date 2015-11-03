@@ -1,9 +1,9 @@
 REBOL [
-    Title   : "Simple stack vitrual mashine"
-    File    : %vm.r
-    Author  : "Kirill Temnov"
-    Date    : 02/11/2015
-    Version : 0.0.1
+    Title: "Simple stack vitrual mashine"
+    File: %vm.r
+    Author: "Kirill Temnov"
+    Date: 02/11/2015
+    Version: 0.0.1
     ]
 
 
