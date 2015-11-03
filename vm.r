@@ -3,7 +3,7 @@ REBOL [
     File: %vm.r
     Author: "Kirill Temnov"
     Date: 02/11/2015
-    Version: 0.0.1
+    Version: 0.0.2
     ]
 
 
@@ -71,6 +71,9 @@ vitrual-mashine: make object! [
         print probe stack
     ]
 
+    inc: func [x] [x + 1]
+    dec: func [x] [x - 1]
+
     run: func [
         program
     ] [
@@ -98,6 +101,21 @@ vitrual-mashine: make object! [
                 ; neg
                 #{05} [with-one-arg-do stack :negate]
 
+                ; and
+                #{06} [with-two-args-do stack :and]
+
+                ; or
+                #{07} [with-two-args-do stack :or]
+
+                ; inc
+                #{08} [with-one-arg-do stack :inc]
+
+                ; dec
+                #{09} [with-one-arg-do stack :dec]
+
+                ; pop
+                #{0A} [stack: next stack]
+
                 ; stat
                 #{98} [dump-state]
 
@@ -114,14 +132,3 @@ vitrual-mashine: make object! [
 
 
 vm: make vitrual-mashine []
-
-vm/run [['oops]]
-
-vm/run [
-  #{01 02} ; push 2
-  #{01 0C} ; push 12
-  #{04}    ; mul
-  #{00}    ; noop
-  #{98}    ; stat
-  #{00}    ; noop
-]
