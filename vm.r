@@ -3,7 +3,7 @@ REBOL [
     File: %vm.r
     Author: "Kirill Temnov"
     Date: 02/11/2015
-    Version: 0.0.2
+    Version: 0.1.0
     ]
 
 
@@ -56,78 +56,129 @@ vitrual-mashine: make object! [
     ]
 
     stack: []
+    code: #{}                           ; program code, loaded in vm
+    registers: make object! [
+        pc: 1                          ; program count
+        ]
+
 
     reset: func [
-        ;; "reboot"  mashine
+        { "reboot"  mashine }           ;
     ] [
         print "reset mashine"
         clear stack
+        registers/pc: 1
     ]
 
     dump-state: func [
         ;; dump mashine status
     ] [
-        prin "STACK: "
-        print probe stack
+        print ["STACK: " probe stack]
+        print ["Regs: "  "PC: " registers/pc]
     ]
 
     inc: func [x] [x + 1]
     dec: func [x] [x - 1]
 
-    run: func [
-        program
+    one-byte-instructions: #{00 02 03 04 05 06 07 08 09 0A 98 99} ;
+    two-byte-instructions: #{01}                                  ;
+
+    get-instruction-size: func [
+        "Get size of instruction in bytes"
+        instruction
+    ][
+        if none <> find two-byte-instructions instruction  [return 2]
+        if none <> find one-byte-instructions instruction  [return 1]
+        return 1                        ; unknown instruction size: 1 byte
+    ]
+
+    apply-incstruction: func [
+        {Apply single insruction.
+         return true if instruction valid and not halt,
+         otherwise, return false}       ;
+        /local op size arg offset
     ] [
-        reset
-        forall program [
-            cmd: first program
-            op: to binary! to char! cmd/1
-            arg: cmd/2
-            switch/default op [
-                ; nop
-                #{00} []
-
-                ; push
-                #{01} [insert stack arg]
-
-                ; add
-                #{02}  [with-two-args-do stack :+]
-
-                ; sub
-                #{03}  [with-two-args-do stack :-]
-
-                ; mul
-                #{04} [with-two-args-do stack :*]
-
-                ; neg
-                #{05} [with-one-arg-do stack :negate]
-
-                ; and
-                #{06} [with-two-args-do stack :and]
-
-                ; or
-                #{07} [with-two-args-do stack :or]
-
-                ; inc
-                #{08} [with-one-arg-do stack :inc]
-
-                ; dec
-                #{09} [with-one-arg-do stack :dec]
-
-                ; pop
-                #{0A} [stack: next stack]
-
-                ; stat
-                #{98} [dump-state]
-
-                ; halt
-                #{99} [return dump-state]
+        if error?
+         try [op: to binary! to char! pick code registers/pc]
+        [
+            print "Reach end of code block."
+            return false
+        ]
+        size: get-instruction-size op
+        arg: none
+        if size > 1 [
+            offset: registers/pc + 1
+            arg: pick code offset       ; todo transform to byte
             ]
-            [
-            make error! rejoin ["COMMAND " op " NOT FOUND!"]
-            return
+        registers/pc: registers/pc + size
+        switch/default op [
+            ; nop
+            #{00} []
+
+            ; push
+            #{01} [insert stack arg]
+
+            ; add
+            #{02}  [with-two-args-do stack :+]
+
+            ; sub
+            #{03}  [with-two-args-do stack :-]
+
+            ; mul
+            #{04} [with-two-args-do stack :*]
+
+            ; neg
+            #{05} [with-one-arg-do stack :negate]
+
+            ; and
+            #{06} [with-two-args-do stack :and]
+
+            ; or
+            #{07} [with-two-args-do stack :or]
+
+            ; inc
+            #{08} [with-one-arg-do stack :inc]
+
+            ; dec
+            #{09} [with-one-arg-do stack :dec]
+
+            ; pop
+            #{0A} [stack: next stack]
+
+            ; stat
+            #{98} [dump-state]
+
+            ; halt
+            #{99} [
+                dump-state
+                return false
             ]
         ]
+        [
+            make error! rejoin ["COMMAND " op " NOT FOUND!"]
+            return false
+        ]
+        return true
+
     ]
+
+    run: func [
+        "Execute program on virtual mashine"
+        program
+        /local last-result
+    ] [
+        code: program
+        reset
+        resume
+    ]
+
+    resume: func [
+        "Resume execution from last point"
+        ] [
+        last-result: true
+        while [last-result] [ last-result: apply-incstruction ]
+        ]
+
 ]
 
 
