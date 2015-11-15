@@ -3,43 +3,21 @@ REBOL [
     File: %vm.r
     Author: "Kirill Temnov"
     Date: 02/11/2015
-    Version: 0.1.5
+    Version: 0.2.0
     ]
 
 
-; vm commands:
-;
-;
-;   command    | code
-; nop          | 0x00
-; push NUM     | 0x01
-; add          | 0x02
-; sub          | 0x03
-; mul          | 0x04
-; neg          | 0x05
-; halt         | 0x99
-
-
-; example
-
-; source:  2 + 3
-; ast: [add 2 3]
-; push 2
-; push 3
-; add
-; halt
-
-vitrual-mashine: make object! [
+vitrual-mashine: context [
 
     int-to-word: func [
-        "Convert integer number to a word (binary!)"
+        {Convert integer number to a word (binary!)}
         i [integer!]
     ][
         debase/base copy/part skip to-hex i 4 4 16
     ]
 
     word-to-int: func [
-        "Convert binary word to integer"
+        {Convert binary word to integer}
         w [binary!]
         /local b1 b2
     ][
@@ -50,7 +28,7 @@ vitrual-mashine: make object! [
     ]
 
     swap-stack-values: func [
-        "Swap two top level stack values"
+        {Swap two top level stack values}
         stack [block!]
         /local a b
     ][
@@ -64,8 +42,8 @@ vitrual-mashine: make object! [
 
 
     with-one-arg-do: func [
-      ; Execute fn on top level stack value,
-      ; push result on stack and return stack
+       { Execute fn on top level stack value,
+         push result on stack and return stack}
         stack [block!]
         fn
     ] [
@@ -76,9 +54,9 @@ vitrual-mashine: make object! [
     ]
 
     with-two-args-do: func [
-      ; Execute fn on two top level stack values,
-      ; pop them from stack,
-      ; push result on stack and return stack
+      { Execute fn on two top level stack values,
+        pop them from stack,
+        push result on stack and return stack}
         stack [block!]
         fn
     ] [
@@ -98,7 +76,7 @@ vitrual-mashine: make object! [
 
 
     get-word: func [
-        "Get word (2 bytes) from binary"
+        {Get word (2 bytes) from binary}
         from
         index
         /local first-byte second-byte
@@ -115,38 +93,36 @@ vitrual-mashine: make object! [
         join first-byte second-byte     ; big endian
     ]
 
-    reset: func [
-        "'Reboot' mashine"
-    ] [
+    reset: does [
         print "reset mashine"
         clear stack
         registers/pc: 1
     ]
 
-    dump-state: func [
-        "Dump mashine status"
-    ] [
+    dump-state: does [ {Dump mashine status}
         print ["STACK: " probe stack]
         print ["Regs: "  "PC: " registers/pc]
     ]
 
+    ;; ------------------------------------------------------------
     ;; vm instructions
+    ;; ------------------------------------------------------------
     inc: func [
-        "Increment byte value"
+        {Increment byte value}
         x [binary!]
     ] [
         int-to-word  1 + word-to-int x
     ]
 
     dec: func [
-        "Decrement byte value"
+        {Decrement byte value}
         x [binary!]
     ] [
         int-to-word  -1 + word-to-int x
     ]
 
     add: func [
-        "Add one operand to another"
+        {Add one operand to another}
         first-op [binary!]
         second-op [binary!]
         /local i1 i2
@@ -157,7 +133,7 @@ vitrual-mashine: make object! [
     ]
 
     sub: func [
-        "Substract one operand from another"
+        {Substract one operand from another}
         first-op  [binary!]
         second-op [binary!]
         /local i1 i2
@@ -167,12 +143,12 @@ vitrual-mashine: make object! [
         int-to-word i1 - i2
     ]
 
-
+    ;; todo instruction set should be merged with translator
     one-byte-instructions: #{00 02 03 04 05 06 07 08 09 0A 98 99} ;
     two-byte-instructions: #{01}                                  ;
 
     get-instruction-size: func [
-        "Get size of instruction in bytes"
+        {Get size of instruction in bytes}
         instruction
     ][
         if none <> find two-byte-instructions instruction  [
@@ -263,7 +239,7 @@ vitrual-mashine: make object! [
     ]
 
     run: func [
-        "Execute program on virtual mashine"
+        {Execute program in virtual mashine}
         program
         /local last-result
     ] [
@@ -273,13 +249,10 @@ vitrual-mashine: make object! [
     ]
 
     resume: func [
-        "Resume execution from last point"
+        {Resume execution from last point}
         ] [
         last-result: true
         while [last-result] [ last-result: apply-incstruction ]
         ]
 
 ]
-
-
-vm: make vitrual-mashine []
