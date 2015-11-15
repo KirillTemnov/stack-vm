@@ -9,7 +9,7 @@ REBOL [
 translator: context [
     spacer: charset " ^-^/"
     spaces: [some spacer]
-    digit:  charset "012346789"
+    digit:  ["0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"] ;charset "012346789"
     one-byte-command:  [
        "pop"  | "add"  | "sub"  |
        "and"  | "or"   | "xor"  |
