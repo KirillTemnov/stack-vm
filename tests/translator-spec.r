@@ -40,6 +40,14 @@ test/assert [equal? [["swap"]] t/source-to-block {swap}]
 test/assert [equal? [["stat"]] t/source-to-block {stat}]
 test/assert [equal? [["halt"]] t/source-to-block {halt}]
 
+test/assert [equal?
+    [["push" "123"] ["push" "456"] ["add"]] t/source-to-block {
+        push 123
+        push 456
+        add
+    }
+]
+
 test/assert [equal? #{00} t/block-to-bytecode [["pop"]]]
 test/assert [equal? #{010001} t/block-to-bytecode [["push" "1"]]]
 test/assert [equal? #{010001} t/block-to-bytecode [["push" "1"]]]

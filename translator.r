@@ -57,15 +57,15 @@ translator: context [
        foreach line lines [
           if (0 < length? trim line) [ ; skip empty lines
              unless parse line [
-                [copy v one-byte-command end (insert result '_ result/1: join [] v)] |
-                [copy v two-byte-command end (insert result '_ result/1: parse v "")]
+                 [copy v one-byte-command end (append/only result join [] v)] |
+                 [copy v two-byte-command end (append/only result parse v "")]
                 ][
                 make error! reform ["error in line #" line-num ": " line]
              ]
           ]
           line-num: line-num + 1
        ]
-       reverse result
+       result
     ]
 
 
