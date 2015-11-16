@@ -34,6 +34,7 @@ test-suite: context [
     stat: does [
         print ["^/" total "^/"]
         print ["Total test passed:" length? total ". Errors" errors ". Fails" fails]
+        return fails
      ]
 ]
 
