@@ -66,7 +66,9 @@ vitrual-mashine: context [
         stack
     ]
 
-    stack: []
+    data-stack: []
+    return-stack: []
+    memory: []                  ; program memory
     code: #{}                           ; program code, loaded in vm
     registers: make object! [
         pc: 1                          ; program count
@@ -95,12 +97,12 @@ vitrual-mashine: context [
 
     reset: does [
         print "reset mashine"
-        clear stack
+        clear data-stack
         registers/pc: 1
     ]
 
     dump-state: does [ {Dump mashine status}
-        print ["STACK: " probe stack]
+        print ["DATA-STACK: " probe data-stack]
         print ["Regs: "  "PC: " registers/pc]
     ]
 
@@ -183,43 +185,43 @@ vitrual-mashine: context [
             #{00} []
 
             ; push
-            #{01} [insert stack arg]
+            #{01} [insert data-stack arg]
 
             ; add
-            #{02}  [with-two-args-do stack :add]
+            #{02}  [with-two-args-do data-stack :add]
 
             ; sub
-            #{03}  [with-two-args-do stack :sub]
+            #{03}  [with-two-args-do data-stack :sub]
 
             ; mul
-            ;#{04} [with-two-args-do stack :*]
+            ;#{04} [with-two-args-do data-stack :*]
 
             ; and
-            #{05} [with-one-arg-do stack :and]
+            #{05} [with-one-arg-do data-stack :and]
 
             ; or
-            #{06} [with-two-args-do stack :or]
+            #{06} [with-two-args-do data-stack :or]
 
             ; xor
-            #{07} [with-two-args-do stack :xor]
+            #{07} [with-two-args-do data-stack :xor]
 
             ; inc
-            #{08} [with-one-arg-do stack :inc]
+            #{08} [with-one-arg-do data-stack :inc]
 
             ; dec
-            #{09} [with-one-arg-do stack :dec]
+            #{09} [with-one-arg-do data-stack :dec]
 
             ; pop/drop
-            #{0A} [remove stack]
+            #{0A} [remove data-stack]
 
             ; dup
-            #{0B} [insert stack pick stack 1]
+            #{0B} [insert data-stack pick data-stack 1]
 
             ; over
-            #{0C} [insert stack pick stack 2]
+            #{0C} [insert data-stack pick data-stack 2]
 
             ; swap
-            #{0D} [swap-stack-values stack]
+            #{0D} [swap-stack-values data-stack]
 
             ; stat
             #{98} [dump-state]
@@ -238,21 +240,35 @@ vitrual-mashine: context [
 
     ]
 
+    split-code-and-data: func [
+        {Split binary sequence into code and data
+         first word in binary sequence is length of data section in WORDS (N),
+         code data starts after N + 1 words and ends at end of sequence}
+        data [binary!]
+        /local size code script-data
+        ][
+        size: word-to-int get-word data 1
+        code: copy/part skip data (size * 2 + 2) length? data
+        script-data: copy/part skip data size size * 2
+        do remold [script-data code]
+    ]
+
+
     run: func [
         {Execute program in virtual mashine}
         program
-        /local last-result
+        /local code-and-data
     ] [
-        code: program
+        code-and-data: split-code-and-data program
+        memory: first code-and-data
+        code: second code-and-data
         reset
         resume
     ]
 
-    resume: func [
-        {Resume execution from last point}
-        ] [
+    resume: does [{Resume execution from last point}
         last-result: true
         while [last-result] [ last-result: apply-incstruction ]
-        ]
+    ]
 
 ]
