@@ -1,3 +1,4 @@
+#!/usr/bin/env rebol
 REBOL [
     Title: "Translator for simple stack vitrual mashine"
     File: %translator.r
@@ -78,3 +79,27 @@ translator: context [
        block-to-bytecode source-to-block source
     ]
  ]
+
+args: system/options/args
+
+; we have commands to translate
+if args [
+    print
+    fname: first args
+    t: make translator []
+
+    if error?
+    try [
+        file: read to-file fname
+    ][
+        print ["Error reading file" fname]
+    ]
+
+    if error?
+    set/any 'err try [
+        print t/source-to-bytecode file
+    ][
+        print ["Translation error:"]
+        print mold disarm get/any 'err
+    ]
+]
