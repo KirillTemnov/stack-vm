@@ -1,4 +1,5 @@
 #!/usr/bin/env rebol
+
 REBOL [
     Title: "Translator for simple stack vitrual mashine"
     File: %translator.r
@@ -30,22 +31,22 @@ translator: context [
     source-to-block: func [
        {Translate source assembler code to a block! of commands}
        source [string! file!] "source code"
-       /local lines result line-num
+       /local lines result line-num trimmed-line
     ][
        lines: parse/all source "^/"
        result: copy []
-       line-num: 1                   ; TODO add rule for comments
+       line-num: 1
        foreach line lines [
-          if (0 < length? trim line) [ ; skip empty lines
-             unless parse line [
-                 [copy v one-byte-command end (append/only result join [] v)] |
-;;                 [copy v two-byte-command end (append/only result join [] v)]
-                 [copy v two-byte-command end (append/only result parse v "")]
-                ][
-                make error! reform ["error in line #" line-num ": " line]
-             ]
-          ]
-          line-num: line-num + 1
+           trimmed-line: first parse/all trim line ";" ; cut off comments part
+           if (0 < length? trimmed-line) [ ; skip empty lines
+               unless parse trimmed-line [
+                   [copy v one-byte-command end (append/only result join [] v)] |
+                   [copy v two-byte-command end (append/only result parse v "")]
+                   ][
+                   make error! reform ["error in line #" line-num ": " line]
+               ]
+           ]
+           line-num: line-num + 1
        ]
        result
     ]
