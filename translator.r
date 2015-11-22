@@ -6,36 +6,16 @@ REBOL [
     Version: 0.2.0
     ]
 
-translator: context [
-    spacer: charset " ^-^/"
-    spaces: [some spacer]
-    digit:  ["0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"] ;charset "012346789"
-    one-byte-command:  [
-       "pop"  | "add"  | "sub"  |
-       "and"  | "or"   | "xor"  |
-       "inc"  | "dec"  |
-       "drop" | "dup"  | "over" | "swap" |
-       "stat" | "halt"
-    ]
-    two-byte-command: ["push" some digit]
 
-    list-of-commands: to-hash [
-        "pop"     #{00}
-        "push"    #{01}
-        "add"     #{02}
-        "sub"     #{03}
-        "and"     #{05}
-        "or"      #{06}
-        "xor"     #{07}
-        "inc"     #{08}
-        "dec"     #{09}
-        "drop"    #{0A}
-        "dup"     #{0B}
-        "over"    #{0C}
-        "swap"    #{0D}
-        "stat"    #{98}
-        "halt"    #{99}
-    ]
+do %opcodes.r
+
+translator: context [
+    digit:  ["0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"] ;charset "012346789"
+
+    one-byte-command: generate-one-byte-rules
+    two-byte-command: generate-two-byte-rules
+
+    list-of-commands: opcodes
 
 
     int-to-word: func [
@@ -58,6 +38,7 @@ translator: context [
           if (0 < length? trim line) [ ; skip empty lines
              unless parse line [
                  [copy v one-byte-command end (append/only result join [] v)] |
+;;                 [copy v two-byte-command end (append/only result join [] v)]
                  [copy v two-byte-command end (append/only result parse v "")]
                 ][
                 make error! reform ["error in line #" line-num ": " line]
@@ -76,8 +57,8 @@ translator: context [
     ][
         code: copy #{}
         foreach line commands [
-           op: first line
-           any [
+            op: first line
+            any [
               if found? find one-byte-command op [
                  append code select list-of-commands op
               ]

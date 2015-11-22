@@ -6,6 +6,7 @@ REBOL [
     Version: 0.2.0
     ]
 
+do %opcodes.r
 
 vitrual-mashine: context [
 
@@ -145,9 +146,8 @@ vitrual-mashine: context [
         int-to-word i1 - i2
     ]
 
-    ;; todo instruction set should be merged with translator
-    one-byte-instructions: #{00 02 03 04 05 06 07 08 09 0A 98 99} ;
-    two-byte-instructions: #{01}                                  ;
+    one-byte-instructions: generate-one-byte-instructions
+    two-byte-instructions: generate-two-byte-instructions
 
     get-instruction-size: func [
         {Get size of instruction in bytes}
@@ -180,54 +180,54 @@ vitrual-mashine: context [
             arg: get-word code offset
             ]
         registers/pc: registers/pc + size
-        switch/default op [
-            ; nop
-            #{00} []
+        switch/default select opcode-names op [
+            ; nop #{00} !!!
+            "nop" []
 
-            ; push
-            #{01} [insert data-stack arg]
+            ; push #{01}
+            "push" [insert data-stack arg]
 
-            ; add
-            #{02}  [with-two-args-do data-stack :add]
+            ; add #{02}
+            "add"  [with-two-args-do data-stack :add]
 
-            ; sub
-            #{03}  [with-two-args-do data-stack :sub]
+            ; sub #{03}
+            "sub"  [with-two-args-do data-stack :sub]
 
             ; mul
             ;#{04} [with-two-args-do data-stack :*]
 
-            ; and
-            #{05} [with-one-arg-do data-stack :and]
+            ; and #{05}
+            "and" [with-one-arg-do data-stack :and]
 
-            ; or
-            #{06} [with-two-args-do data-stack :or]
+            ; or #{06}
+            "or" [with-two-args-do data-stack :or]
 
-            ; xor
-            #{07} [with-two-args-do data-stack :xor]
+            ; xor #{07}
+            "xor" [with-two-args-do data-stack :xor]
 
-            ; inc
-            #{08} [with-one-arg-do data-stack :inc]
+            ; inc #{08}
+            "inc" [with-one-arg-do data-stack :inc]
 
-            ; dec
-            #{09} [with-one-arg-do data-stack :dec]
+            ; dec #{09}
+            "dec" [with-one-arg-do data-stack :dec]
 
-            ; pop/drop
-            #{0A} [remove data-stack]
+            ; pop/drop #{0A}
+            "drop" [remove data-stack]
 
-            ; dup
-            #{0B} [insert data-stack pick data-stack 1]
+            ; dup #{0B}
+            "dup" [insert data-stack pick data-stack 1]
 
-            ; over
-            #{0C} [insert data-stack pick data-stack 2]
+            ; over #{0C}
+            "over" [insert data-stack pick data-stack 2]
 
-            ; swap
-            #{0D} [swap-stack-values data-stack]
+            ; swap #{0D}
+            "swap" [swap-stack-values data-stack]
 
-            ; stat
-            #{98} [dump-state]
+            ; stat #{98}
+            "stat" [dump-state]
 
-            ; halt
-            #{99} [
+            ; halt #{99}
+            "halt" [
                 dump-state
                 return false
             ]
