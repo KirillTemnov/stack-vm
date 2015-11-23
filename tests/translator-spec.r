@@ -68,5 +68,9 @@ test/assert [equal? join select opcodes "push" #{007F} t/block-to-bytecode [["pu
 test/assert [equal? join select opcodes "push" #{FFFF} t/block-to-bytecode [["push" "-1"]]]
 test/assert [equal? join select opcodes "push" #{2692} t/block-to-bytecode [["push" "9874"]]]
 
+;;  replace labels
+test/assert [equal?
+    [["push" "232"] ["call" 110] ["halt"]]
+    t/replace-labels [["push" "232"] ["call" "RPC"] ["halt"]] to-hash ["RPC" 110]]
 
 test/stat

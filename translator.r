@@ -12,10 +12,10 @@ REBOL [
 do %opcodes.r
 
 translator: context [
-    digit:  ["0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"] ;charset "012346789"
 
     one-byte-command: generate-one-byte-rules
     two-byte-command: generate-two-byte-rules
+    label-rule: generate-label-rules
 
     list-of-commands: opcodes
 
@@ -27,27 +27,83 @@ translator: context [
        debase/base copy/part skip to-hex i 4 4 16
     ]
 
+    replace-labels: func [
+        {Replace labels to numbers in blocks or code}
+        code [block!]
+        labels [hash!]
+        /local r cmd
+    ][
+        r: copy []
+        foreach code-line code [
+            cmd: first code-line
+            either found? find label-commands cmd [
+                append/only r join join [] cmd select labels second code-line
+            ][
+                append/only r join [] code-line
+            ]
+        ]
+        r
+    ]
+
 
     source-to-block: func [
        {Translate source assembler code to a block! of commands}
        source [string! file!] "source code"
-       /local lines result line-num trimmed-line
+       /local lines result line-num trimmed-line store-line labels
     ][
+       store-line: func [
+           {Store line inside resulting block}
+           container [block!] "container to store"
+           cmd_len [integer!] "command length"
+           cmd "command"
+       ][
+           bytes: bytes + cmd_len
+           cmd: trim/with cmd ":" ; remove last :
+           switch/default cmd_len [
+               0 [append container join join [] cmd bytes]
+
+               1 [append/only container join [] cmd]
+
+               3 [append/only container parse cmd ""]
+
+           ][
+               print ["this is error. len:"  cmd_len "command:" cmd]
+           ]
+       ]
+
        lines: parse/all source "^/"
        result: copy []
+       labels: copy []
        line-num: 1
+       bytes: 1
        foreach line lines [
-           trimmed-line: first parse/all trim line ";" ; cut off comments part
-           if (0 < length? trimmed-line) [ ; skip empty lines
+           trimmed-line: parse/all trim line ";" ; cut off comments part
+
+           ; skip empty lines
+           if (0 < length? trimmed-line) [
+              if (0 < length? first trimmed-line) [
+                  print ["operate on" first trimmed-line]
+               trimmed-line: first trimmed-line
                unless parse trimmed-line [
-                   [copy v one-byte-command end (append/only result join [] v)] |
-                   [copy v two-byte-command end (append/only result parse v "")]
+                   [copy v label-rule end (store-line labels 0 v)] |
+
+                   [copy v one-byte-command end (store-line result 1 v)] |
+
+                   [copy v two-byte-command end (store-line result 3 v)]
+
                    ][
                    make error! reform ["error in line #" line-num ": " line]
+               ]
                ]
            ]
            line-num: line-num + 1
        ]
+
+       ; replace all labels to values in code
+
+       print ["BEFORE:" mold result]
+       result: replace-labels result to-hash labels
+       print ["AFTER" mold result]
        result
     ]
 
@@ -58,27 +114,37 @@ translator: context [
        /local code op
     ][
         code: copy #{}
+        data: copy #{}
         foreach line commands [
             op: first line
+            print ["LINE: " line]
             any [
-              if found? find one-byte-command op [
+              if found? find one-byte-command-names op [
                  append code select list-of-commands op
               ]
-              if found? find two-byte-command op [
-                 append code join select list-of-commands op int-to-word to-integer second line
+              if found? find two-byte-command-names op [
+                  append code join select list-of-commands op int-to-word to-integer second line
               ]
            ]
         ]
-        code
+        join join [] code data
      ]
 
 
-    source-to-bytecode: func [
-       {Translate source code to bytecode}
+    run: func [
+       {Translate source code to bytecode and pack it}
        source [string! file!]   ; read file and not process inside source to block?
+       /local code-and-data code data
     ][
-       block-to-bytecode source-to-block source
+
+       code-and-data: block-to-bytecode source-to-block source
+
+       code: first code-and-data
+       data: second code-and-data
+       join join int-to-word length? data data code
     ]
+
+
  ]
 
 args: system/options/args
@@ -98,7 +164,7 @@ if args [
 
     if error?
     set/any 'err try [
-        print t/source-to-bytecode file
+        print t/run file
     ][
         print ["Translation error:"]
         print mold disarm get/any 'err

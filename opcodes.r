@@ -42,14 +42,17 @@ opcodes: to-hash [
     "dup"     #{0B}
     "over"    #{0C}
     "swap"    #{0D}
+    "call"    #{10}
+    "retn"    #{11}
     "stat"    #{98}
     "halt"    #{99}
 ]
 
 opcode-names: reverse-keys-and-vals opcodes
 
-two-byte-command-names: ["push"]
+two-byte-command-names: ["push" "call"]
 one-byte-command-names: difference get-hash-keys opcodes two-byte-command-names
+label-commands: ["call"]        ; todo jump etc
 
 
 insert-|: func [
@@ -65,6 +68,8 @@ insert-|: func [
     result
 ]
 
+get-one-byte-commands: does [ ["pop"]] ;one-byte-command-names]
+get-two-byte-commands: does [ ["push"]] ;two-byte-command-names]
 
 generate-one-byte-rules: does [
     {Generate one byte command rules for parsing}
@@ -72,9 +77,17 @@ generate-one-byte-rules: does [
 ]
 
 generate-two-byte-rules: does [
-    {Generate one byte command rules for parsing}
+    {Generate three byte command rules for parsing}
     digit:  insert-| parse "0 1 2 3 4 5 6 7 8 9" " "
-    ["push" some digit]
+    letter: charset [#"a" - #"z" #"A" - #"Z" "_" #"0" - #"9"]
+    label: [some letter ":"]
+    [["push" some digit] | ["call" some letter]]
+]
+
+generate-label-rules: does [
+    {Generate label rules}
+    letter: charset [#"a" - #"z" #"A" - #"Z" "_" #"0" - #"9"]
+    [some letter ":"]
 ]
 
 
