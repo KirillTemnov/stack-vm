@@ -146,6 +146,23 @@ vitrual-mashine: context [
         int-to-word i1 - i2
     ]
 
+    call-proc: func [
+        {Call remote proc}
+        addr "remote proc addr"
+    ][
+        append return-stack registers/pc
+        registers/pc: word-to-int addr
+        resume
+    ]
+
+    proc-return: does [
+        {Return from remote proc. Throws error if return stack is empty}
+        registers/pc: take/last return-stack
+        resume
+    ]
+    ; end of
+    ; --------------------------------------------------------------------------------
+
     one-byte-instructions: generate-one-byte-instructions
     two-byte-instructions: generate-two-byte-instructions
 
@@ -222,6 +239,8 @@ vitrual-mashine: context [
 
             ; swap #{0D}
             "swap" [swap-stack-values data-stack]
+
+            "call" [call-proc arg]
 
             ; stat #{98}
             "stat" [dump-state]
