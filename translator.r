@@ -80,31 +80,25 @@ translator: context [
            trimmed-line: parse/all trim line ";" ; cut off comments part
 
            ; skip empty lines
-           if (0 < length? trimmed-line) [
+           if (0 < length? trimmed-line) [ ; this is ugly part
               if (0 < length? first trimmed-line) [
-                  print ["operate on" first trimmed-line]
-               trimmed-line: first trimmed-line
-               unless parse trimmed-line [
-                   [copy v label-rule end (store-line labels 0 v)] |
+                  trimmed-line: first trimmed-line
+                  unless parse trimmed-line [
+                      [copy v label-rule end (store-line labels 0 v)] |
 
-                   [copy v one-byte-command end (store-line result 1 v)] |
+                      [copy v one-byte-command end (store-line result 1 v)] |
 
-                   [copy v two-byte-command end (store-line result 3 v)]
-
-                   ][
-                   make error! reform ["error in line #" line-num ": " line]
-               ]
+                      [copy v two-byte-command end (store-line result 3 v)]
+                  ][
+                      make error! reform ["error in line #" line-num ": " line]
+                  ]
                ]
            ]
            line-num: line-num + 1
        ]
 
        ; replace all labels to values in code
-
-       print ["BEFORE:" mold result]
-       result: replace-labels result to-hash labels
-       print ["AFTER" mold result]
-       result
+       replace-labels result to-hash labels
     ]
 
 
@@ -117,7 +111,6 @@ translator: context [
         data: copy #{}
         foreach line commands [
             op: first line
-            print ["LINE: " line]
             any [
               if found? find one-byte-command-names op [
                  append code select list-of-commands op

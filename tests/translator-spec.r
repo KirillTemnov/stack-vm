@@ -9,6 +9,18 @@ REBOL [
 do %spec.r
 do %../translator.r
 
+
+with-empty-data: func [
+    operator
+    /extra-data [binary!]
+    /local r
+][
+    r: join join [] select opcodes operator #{}
+    if extra-data [r/1: join r/1 extra-data]
+    r
+]
+
+
 t: make translator []
 
 test/assert [equal? #{0000} t/int-to-word 0]
@@ -41,32 +53,85 @@ test/assert [equal? [["stat"]] t/source-to-block {stat}]
 test/assert [equal? [["halt"]] t/source-to-block {halt}]
 
 test/assert [equal?
-    [["push" "123"] ["push" "456"] ["add"]] t/source-to-block {
+    [["push" "123"] ["push" "456"] ["add"]]
+
+    t/source-to-block {
         push 123
         push 456
         add
     }
 ]
 
-test/assert [equal? select opcodes "pop"  t/block-to-bytecode [["pop"]]]
-test/assert [equal? select opcodes "add"  t/block-to-bytecode [["add"]]]
-test/assert [equal? select opcodes "sub"  t/block-to-bytecode [["sub"]]]
-test/assert [equal? select opcodes "and"  t/block-to-bytecode [["and"]]]
-test/assert [equal? select opcodes "or"   t/block-to-bytecode [["or"]]]
-test/assert [equal? select opcodes "xor"  t/block-to-bytecode [["xor"]]]
-test/assert [equal? select opcodes "inc"  t/block-to-bytecode [["inc"]]]
-test/assert [equal? select opcodes "dec"  t/block-to-bytecode [["dec"]]]
-test/assert [equal? select opcodes "drop" t/block-to-bytecode [["drop"]]]
-test/assert [equal? select opcodes "dup"  t/block-to-bytecode [["dup"]]]
-test/assert [equal? select opcodes "over" t/block-to-bytecode [["over"]]]
-test/assert [equal? select opcodes "swap" t/block-to-bytecode [["swap"]]]
-test/assert [equal? select opcodes "stat" t/block-to-bytecode [["stat"]]]
-test/assert [equal? select opcodes "halt" t/block-to-bytecode [["halt"]]]
+test/assert [equal?
+    [["call" 4] ["push" "123"] ["push" "456"] ["add"]]
 
-test/assert [equal? join select opcodes "push" #{0001} t/block-to-bytecode [["push" "1"]]]
-test/assert [equal? join select opcodes "push" #{007F} t/block-to-bytecode [["push" "127"]]]
-test/assert [equal? join select opcodes "push" #{FFFF} t/block-to-bytecode [["push" "-1"]]]
-test/assert [equal? join select opcodes "push" #{2692} t/block-to-bytecode [["push" "9874"]]]
+    t/source-to-block {
+        call test
+test:
+        push 123
+        push 456
+        add
+
+    }
+]
+
+test/assert [equal?
+    [["push" "1"] ["push" "2"] ["push" "3"] ["call" 14] ["stat"] ["add"] ["add"] ["retn"]]
+
+    t/source-to-block {
+main:
+	push 1
+        push 2
+        push 3
+        call make_sum_of_three
+	stat
+
+make_sum_of_three:
+        add
+        add
+        retn
+    }
+]
+
+; #{000001000101000201000310000E98020211}
+
+
+
+test/assert [equal? with-empty-data "pop" t/block-to-bytecode [["pop"]]]
+
+test/assert [equal? with-empty-data "add"  t/block-to-bytecode [["add"]]]
+test/assert [equal? with-empty-data "sub"  t/block-to-bytecode [["sub"]]]
+test/assert [equal? with-empty-data "and"  t/block-to-bytecode [["and"]]]
+test/assert [equal? with-empty-data "or"   t/block-to-bytecode [["or"]]]
+test/assert [equal? with-empty-data "xor"  t/block-to-bytecode [["xor"]]]
+test/assert [equal? with-empty-data "inc"  t/block-to-bytecode [["inc"]]]
+test/assert [equal? with-empty-data "dec"  t/block-to-bytecode [["dec"]]]
+test/assert [equal? with-empty-data "drop" t/block-to-bytecode [["drop"]]]
+test/assert [equal? with-empty-data "dup"  t/block-to-bytecode [["dup"]]]
+test/assert [equal? with-empty-data "over" t/block-to-bytecode [["over"]]]
+test/assert [equal? with-empty-data "swap" t/block-to-bytecode [["swap"]]]
+test/assert [equal? with-empty-data "stat" t/block-to-bytecode [["stat"]]]
+test/assert [equal? with-empty-data "halt" t/block-to-bytecode [["halt"]]]
+
+test/assert [equal?
+    with-empty-data/extra-data "push" #{0001}
+    t/block-to-bytecode [["push" "1"]]
+]
+
+test/assert [equal?
+    with-empty-data/extra-data "push" #{007F}
+    t/block-to-bytecode [["push" "127"]]
+]
+
+test/assert [equal?
+    with-empty-data/extra-data "push" #{FFFF}
+    t/block-to-bytecode [["push" "-1"]]
+]
+
+test/assert [equal?
+    with-empty-data/extra-data "push" #{2692}
+    t/block-to-bytecode [["push" "9874"]]
+]
 
 ;;  replace labels
 test/assert [equal?
