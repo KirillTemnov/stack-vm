@@ -20,7 +20,7 @@ test-suite: context [
                 append total "."
                 ][
                 append total "F"
-                print ["Fail on block" block]
+                print ["^/Fail on block" probe block]
                 fails: fails + 1
              ]
           ][
