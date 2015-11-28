@@ -9,6 +9,7 @@ REBOL [
 do %spec.r
 do %../translator.r
 
+test: make test-suite [name: "Translator tests"]
 
 with-empty-data: func [
     operator

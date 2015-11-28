@@ -6,6 +6,7 @@ REBOL [
     ]
 
 test-suite: context [
+    name: ""
     total: ""
     errors: 0
     fails: 0
@@ -20,22 +21,23 @@ test-suite: context [
                 append total "."
                 ][
                 append total "F"
-                print ["^/Fail on block" probe block]
+                print ["^/Fail on block" mold block]
                 fails: fails + 1
              ]
           ][
           append total "E"
           errors: errors + 1
-          print ["Error on block" block]
+          print ["Error on block" mold block]
        ]
 
     ]
 
+
+
     stat: does [
-        print ["^/" total "^/"]
+        print ["Test suite: " name]
+        print ["========================================^/" total "^/"]
         print ["Total test passed:" length? total ". Errors" errors ". Fails" fails]
         return fails
      ]
 ]
-
-test: make test-suite []
