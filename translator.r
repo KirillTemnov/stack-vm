@@ -15,6 +15,7 @@ translator: context [
 
     one-byte-command: generate-one-byte-rules
     two-byte-command: generate-two-byte-rules
+    var-definition: generate-var-definition
     label-rule: generate-label-rules
 
     list-of-commands: opcodes
@@ -49,7 +50,7 @@ translator: context [
     source-to-block: func [
        {Translate source assembler code to a block! of commands}
        source [string! file!] "source code"
-       /local lines result line-num trimmed-line store-line labels
+       /local lines code-blk data-blk line-num trimmed-line store-line labels
     ][
        store-line: func [
            {Store line inside resulting block}
@@ -71,9 +72,29 @@ translator: context [
            ]
        ]
 
+
+       store-var: func [
+           {Store data label value and offset.
+           Process only template:
+           LABEL    SW  NUMBER}
+           container            "data container"
+           data-string          "data string"
+           /local data-entry
+       ][
+           splited: parse/all data-string "sw"
+           label: trim/all first splited
+           value: int-to-word to-integer trim/all last splited
+           ; add hash key and value in separate lines
+           append/only container label
+           append/only container make object! [lbl: label val: value]
+       ]
+
+
        lines: parse/all source "^/"
-       result: copy []
+       code-blk: copy []
+       data-blk: to-hash []
        labels: copy []
+       mode: none               ; one of 'code 'data
        line-num: 1
        bytes: 1
        foreach line lines [
@@ -83,22 +104,38 @@ translator: context [
            if (0 < length? trimmed-line) [ ; this is ugly part
               if (0 < length? first trimmed-line) [
                   trimmed-line: first trimmed-line
-                  unless parse trimmed-line [
-                      [copy v label-rule end (store-line labels 0 v)] |
+                  print ["L:" trimmed-line "{ " probe mode "}"]
+                  either 'code = mode [
+                          parse trimmed-line [ ; todo add /all for parse
+                              [copy v label-rule end (store-line labels 0 v)] |
+                              [copy v one-byte-command end (store-line code-blk 1 v)] |
+                              [copy v two-byte-command end (store-line code-blk 3 v)]
+                          ][
+                              make error! reform ["Error in code section. line #" line-num ": " line]
+                          ]
+                      ][
+                          parse/all trimmed-line [
+                              [copy v var-definition end (store-var data-blk v)] |
 
-                      [copy v one-byte-command end (store-line result 1 v)] |
+                              ; end of code section
+                              [".code" (mode: 'code print ["in code mode"])] |
 
-                      [copy v two-byte-command end (store-line result 3 v)]
-                  ][
-                      make error! reform ["error in line #" line-num ": " line]
-                  ]
-               ]
+                              ; end of data section
+                              [".data" (mode: 'data print ["in data mode"])]
+                          ][
+                              make error! reform ["Error in" mode "section. line #" line-num ": " line]
+                          ]
+                      ]
+
+
+              ]
            ]
            line-num: line-num + 1
        ]
 
        ; replace all labels to values in code
-       replace-labels result to-hash labels
+       print ["Data section: " probe data-blk]
+       replace-labels code-blk to-hash labels
     ]
 
 

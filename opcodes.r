@@ -42,6 +42,7 @@ opcodes: to-hash [
     "dup"     #{0B}
     "over"    #{0C}
     "swap"    #{0D}
+    "load"    #{0E}
     "call"    #{10}
     "retn"    #{11}
     "stat"    #{98}
@@ -50,7 +51,7 @@ opcodes: to-hash [
 
 opcode-names: reverse-keys-and-vals opcodes
 
-two-byte-command-names: ["push" "call"]
+two-byte-command-names: ["push" "call" "load"]
 one-byte-command-names: difference get-hash-keys opcodes two-byte-command-names
 label-commands: ["call"]        ; todo jump etc
 
@@ -68,8 +69,6 @@ insert-|: func [
     result
 ]
 
-get-one-byte-commands: does [ ["pop"]] ;one-byte-command-names]
-get-two-byte-commands: does [ ["push"]] ;two-byte-command-names]
 
 generate-one-byte-rules: does [
     {Generate one byte command rules for parsing}
@@ -106,3 +105,15 @@ generate-byte-instructions: func [
 generate-one-byte-instructions: does [generate-byte-instructions one-byte-command-names]
 
 generate-two-byte-instructions: does [generate-byte-instructions two-byte-command-names]
+
+
+generate-var-definition: does [
+    {Generate definition for variable}
+    letter: charset [#"a" - #"z" #"A" - #"Z" "_" #"0" - #"9"]
+    digit:  charset [#"0" - #"9"]
+    ws-char: charset [" " "^t" "^/"]
+    ws: [some ws-char]
+    sign: ["-" | "+" | ]
+    num: [sign some digit]
+    [some letter ws "sw" ws num] ; sw = single word
+]
