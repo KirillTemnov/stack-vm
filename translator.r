@@ -12,6 +12,7 @@ REBOL [
 do %opcodes.r
 
 translator: context [
+    debug: false
 
     one-byte-command: generate-one-byte-rules
     two-byte-command: generate-two-byte-rules
@@ -77,17 +78,41 @@ translator: context [
            {Store data label value and offset.
            Process only template:
            LABEL    SW  NUMBER}
+
            container            "data container"
            data-string          "data string"
-           /local data-entry
+           /local splited label value len bytes-skip last-skip
        ][
            splited: parse/all data-string "sw"
            label: trim/all first splited
            value: int-to-word to-integer trim/all last splited
+           len: 2             ; for now length always 2 words
+
+
            ; add hash key and value in separate lines
+           either 0 < length? container [
+               last-skip: last container
+               bytes-skip: len + last-skip/skip
+           ][
+               bytes-skip: 0
+           ]
            append/only container label
-           append/only container make object! [lbl: label val: value]
+           append/only container make object! [val: value skip: bytes-skip]
        ]
+
+       join-hash-data: func [
+           {Join data hash into raw binary}
+           hash-data "hash with data"
+           /local result entry
+       ][
+         result: copy #{}
+         forskip hash-data 2 [
+             entry: second hash-data
+             append/only result entry/val
+         ]
+         result
+       ]
+
 
 
        lines: parse/all source "^/"
@@ -104,7 +129,9 @@ translator: context [
            if (0 < length? trimmed-line) [ ; this is ugly part
               if (0 < length? first trimmed-line) [
                   trimmed-line: first trimmed-line
-                  print ["L:" trimmed-line "{ " probe mode "}"]
+                  if debug [
+                      print ["L:" trimmed-line "{ " probe mode "}"]
+                  ]
                   either 'code = mode [
                           parse trimmed-line [ ; todo add /all for parse
                               [copy v label-rule end (store-line labels 0 v)] |
@@ -118,10 +145,10 @@ translator: context [
                               [copy v var-definition end (store-var data-blk v)] |
 
                               ; end of code section
-                              [".code" (mode: 'code print ["in code mode"])] |
+                              [".code" (mode: 'code if debug [print ["in code mode"]])] |
 
                               ; end of data section
-                              [".data" (mode: 'data print ["in data mode"])]
+                              [".data" (mode: 'data if debug [print ["in data mode"]])]
                           ][
                               make error! reform ["Error in" mode "section. line #" line-num ": " line]
                           ]
@@ -133,19 +160,22 @@ translator: context [
            line-num: line-num + 1
        ]
 
-       ; replace all labels to values in code
-       print ["Data section: " probe data-blk]
-       replace-labels code-blk to-hash labels
+       ; TODO replace all labels to values in code
+       ; print ["Data section: " probe data-blk]
+       ;
+       block-to-bytecode replace-labels code-blk to-hash labels join-hash-data data-blk
     ]
 
 
     block-to-bytecode: func [
-       {Translate commands from block to bytecode}
+       {Translate commands and binary-data  to bytecode}
+
        commands [block!]
+       binary-data
        /local code op
     ][
         code: copy #{}
-        data: copy #{}
+        data: join int-to-word length? binary-data binary-data
         foreach line commands [
             op: first line
             any [
@@ -157,7 +187,7 @@ translator: context [
               ]
            ]
         ]
-        join join [] code data
+        join data code
      ]
 
 
@@ -166,12 +196,7 @@ translator: context [
        source [string! file!]   ; read file and not process inside source to block?
        /local code-and-data code data
     ][
-
-       code-and-data: block-to-bytecode source-to-block source
-
-       code: first code-and-data
-       data: second code-and-data
-       join join int-to-word length? data data code
+       source-to-block source
     ]
 
 

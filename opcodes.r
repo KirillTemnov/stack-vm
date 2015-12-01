@@ -43,6 +43,7 @@ opcodes: to-hash [
     "over"    #{0C}
     "swap"    #{0D}
     "load"    #{0E}
+    "stor"    #{0F}
     "call"    #{10}
     "retn"    #{11}
     "stat"    #{98}
@@ -51,7 +52,7 @@ opcodes: to-hash [
 
 opcode-names: reverse-keys-and-vals opcodes
 
-two-byte-command-names: ["push" "call" "load"]
+two-byte-command-names: ["push" "call" "load" "stor"]
 one-byte-command-names: difference get-hash-keys opcodes two-byte-command-names
 label-commands: ["call"]        ; todo jump etc
 

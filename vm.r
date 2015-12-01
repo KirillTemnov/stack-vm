@@ -3,12 +3,13 @@ REBOL [
     File: %vm.r
     Author: "Kirill Temnov"
     Date: 02/11/2015
-    Version: 0.2.0
     ]
 
 do %opcodes.r
 
 vitrual-mashine: context [
+    debug: false                ; debug flag
+    halt-flag: false            ; halt flag, do not set!
 
     int-to-word: func [
         {Convert integer number to a word (binary!)}
@@ -192,11 +193,15 @@ vitrual-mashine: context [
         ]
 
         size: get-instruction-size op
-        print ["calling" select opcode-names op "with size" size]
         arg: none
         if size > 1 [
             arg: get-word code (registers/pc + 1)
         ]
+        if debug [
+            print ["calling" select opcode-names op "{" arg "}" "with size" size]
+            print ["PC: " registers/pc "^/"]
+        ]
+
         registers/pc: registers/pc + size
         switch/default select opcode-names op [
             ; nop #{00} !!!
@@ -252,6 +257,7 @@ vitrual-mashine: context [
             "halt" [
                 dump-state
                 reset
+                halt-flag: true
                 return false
 
             ]
@@ -266,13 +272,14 @@ vitrual-mashine: context [
 
     split-code-and-data: func [
         {Split binary sequence into code and data
-         first word in binary sequence is length of data section in WORDS (N),
+         first word in binary sequence is length of data section in BYTES (N),
          code data starts after N + 1 words and ends at end of sequence}
+
         data [binary!]
         /local size code script-data
         ][
         size: word-to-int get-word data 1
-        code: copy/part skip data (size * 2 + 2) length? data
+        code: copy/part skip data (size  + 2) length? data
         script-data: copy/part skip data size size * 2
         do remold [script-data code]
     ]
@@ -291,8 +298,10 @@ vitrual-mashine: context [
     ]
 
     resume: does [{Resume execution from last point}
-        last-result: true
-        while [last-result] [ last-result: apply-incstruction ]
+        unless halt-flag [
+            last-result: true
+            while [last-result] [ last-result: apply-incstruction ]
+        ]
     ]
 
 ]
