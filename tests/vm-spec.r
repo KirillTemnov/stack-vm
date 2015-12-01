@@ -15,7 +15,7 @@ test: make test-suite [name: "VM tests"]
 
 
 test/assert [equal? [#{} #{0200}] vm/split-code-and-data #{00000200}]
-test/assert [equal? [#{AAAABBBB} #{0100}] vm/split-code-and-data #{0002AAAABBBB0100}]
+test/assert [equal? [#{AAAABBBB} #{0100}] vm/split-code-and-data #{0004AAAABBBB0100}]
 
 test/assert [equal? #{0000} vm/int-to-word 0]
 test/assert [equal? #{0001} vm/int-to-word 1]

@@ -276,11 +276,12 @@ vitrual-mashine: context [
          code data starts after N + 1 words and ends at end of sequence}
 
         data [binary!]
-        /local size code script-data
+        /local size code script-data word-size
         ][
+        word-size: 2            ; word size in bytes
         size: word-to-int get-word data 1
-        code: copy/part skip data (size  + 2) length? data
-        script-data: copy/part skip data size size * 2
+        code: copy/part skip data size + word-size length? data
+        script-data: copy/part skip data word-size size
         do remold [script-data code]
     ]
 
