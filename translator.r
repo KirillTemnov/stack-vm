@@ -15,7 +15,7 @@ translator: context [
     debug: false
 
     one-byte-command: generate-one-byte-rules
-    two-byte-command: generate-two-byte-rules
+    three-byte-command: generate-three-byte-rules
     var-definition: generate-var-definition
     label-rule: generate-label-rules
 
@@ -136,7 +136,7 @@ translator: context [
                           parse trimmed-line [ ; todo add /all for parse
                               [copy v label-rule end (store-line labels 0 v)] |
                               [copy v one-byte-command end (store-line code-blk 1 v)] |
-                              [copy v two-byte-command end (store-line code-blk 3 v)]
+                              [copy v three-byte-command end (store-line code-blk 3 v)]
                           ][
                               make error! reform ["Error in code section. line #" line-num ": " line]
                           ]
@@ -182,7 +182,7 @@ translator: context [
               if found? find one-byte-command-names op [
                  append code select list-of-commands op
               ]
-              if found? find two-byte-command-names op [
+              if found? find three-byte-command-names op [
                   append code join select list-of-commands op int-to-word to-integer second line
               ]
            ]

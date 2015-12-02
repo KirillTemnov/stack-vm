@@ -52,8 +52,8 @@ opcodes: to-hash [
 
 opcode-names: reverse-keys-and-vals opcodes
 
-two-byte-command-names: ["push" "call" "load" "stor"]
-one-byte-command-names: difference get-hash-keys opcodes two-byte-command-names
+three-byte-command-names: ["push" "call" "load" "stor"]
+one-byte-command-names: difference get-hash-keys opcodes three-byte-command-names
 label-commands: ["call"]        ; todo jump etc
 
 
@@ -76,7 +76,7 @@ generate-one-byte-rules: does [
     insert-| one-byte-command-names
 ]
 
-generate-two-byte-rules: does [
+generate-three-byte-rules: does [
     {Generate three byte command rules for parsing}
     digit:  insert-| parse "0 1 2 3 4 5 6 7 8 9" " "
     letter: charset [#"a" - #"z" #"A" - #"Z" "_" #"0" - #"9"]
@@ -105,7 +105,7 @@ generate-byte-instructions: func [
 
 generate-one-byte-instructions: does [generate-byte-instructions one-byte-command-names]
 
-generate-two-byte-instructions: does [generate-byte-instructions two-byte-command-names]
+generate-three-byte-instructions: does [generate-byte-instructions three-byte-command-names]
 
 
 generate-var-definition: does [

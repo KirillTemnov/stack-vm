@@ -165,13 +165,13 @@ vitrual-mashine: context [
     ; --------------------------------------------------------------------------------
 
     one-byte-instructions: generate-one-byte-instructions
-    two-byte-instructions: generate-two-byte-instructions
+    three-byte-instructions: generate-three-byte-instructions
 
     get-instruction-size: func [
         {Get size of instruction in bytes}
         instruction
     ][
-        if none <> find two-byte-instructions instruction  [
+        if none <> find three-byte-instructions instruction  [
             ; one byte - command, 2 bytes - data
             return 3
         ]
