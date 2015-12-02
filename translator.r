@@ -5,7 +5,6 @@ REBOL [
     File: %translator.r
     Author: "Kirill Temnov"
     Date: 06/11/2015
-    Version: 0.2.0
     ]
 
 
@@ -14,12 +13,14 @@ do %opcodes.r
 translator: context [
     debug: false
 
-    one-byte-command: generate-one-byte-rules
-    three-byte-command: generate-three-byte-rules
-    var-definition: generate-var-definition
-    label-rule: generate-label-rules
+    opcodes: make opcodes-instance []
 
-    list-of-commands: opcodes
+    one-byte-command: opcodes/generate-one-byte-rules
+    three-byte-command: opcodes/generate-three-byte-rules
+    var-definition: opcodes/generate-var-definition
+    label-rule: opcodes/generate-label-rules
+
+    list-of-commands: opcodes/opcodes
 
 
     int-to-word: func [
@@ -38,7 +39,7 @@ translator: context [
         r: copy []
         foreach code-line code [
             cmd: first code-line
-            either found? find label-commands cmd [
+            either found? find opcodes/label-commands cmd [
                 append/only r join join [] cmd select labels second code-line
             ][
                 append/only r join [] code-line
@@ -101,7 +102,10 @@ translator: context [
        ]
 
        join-hash-data: func [
-           {Join data hash into raw binary}
+           {Join data hash into raw binary.
+            e.g. we have hash ["foo" make object! [val: #{01}] "bar" make object! [val: #{0203}]
+           }
+
            hash-data "hash with data"
            /local result entry
        ][
@@ -179,10 +183,10 @@ translator: context [
         foreach line commands [
             op: first line
             any [
-              if found? find one-byte-command-names op [
+              if found? find opcodes/one-byte-command-names op [
                  append code select list-of-commands op
               ]
-              if found? find three-byte-command-names op [
+              if found? find opcodes/three-byte-command-names op [
                   append code join select list-of-commands op int-to-word to-integer second line
               ]
            ]
@@ -202,12 +206,11 @@ translator: context [
 
  ]
 
-args: system/options/args
 
 ; we have commands to translate
-if args [
+if system/options/args [
     print
-    fname: first args
+    fname: first system/options/args
     t: make translator []
 
     if error?

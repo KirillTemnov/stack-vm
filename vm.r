@@ -8,6 +8,8 @@ REBOL [
 do %opcodes.r
 
 vitrual-mashine: context [
+    opcodes: make opcodes-instance []
+
     debug: false                ; debug flag
     halt-flag: false            ; halt flag, do not set!
 
@@ -98,7 +100,7 @@ vitrual-mashine: context [
     ]
 
     reset: does [
-        print "reset mashine"
+        if debug [print "reset mashine"]
         clear data-stack
         registers/pc: 1
     ]
@@ -164,8 +166,8 @@ vitrual-mashine: context [
     ; end of
     ; --------------------------------------------------------------------------------
 
-    one-byte-instructions: generate-one-byte-instructions
-    three-byte-instructions: generate-three-byte-instructions
+    one-byte-instructions: opcodes/generate-one-byte-instructions
+    three-byte-instructions: opcodes/generate-three-byte-instructions
 
     get-instruction-size: func [
         {Get size of instruction in bytes}
@@ -198,12 +200,12 @@ vitrual-mashine: context [
             arg: get-word code (registers/pc + 1)
         ]
         if debug [
-            print ["calling" select opcode-names op "{" arg "}" "with size" size]
+            print ["calling" select opcodes/opcode-names op "{" arg "}" "with size" size]
             print ["PC: " registers/pc "^/"]
         ]
 
         registers/pc: registers/pc + size
-        switch/default select opcode-names op [
+        switch/default select opcodes/opcode-names op [
             ; nop #{00} !!!
             "nop" []
 
