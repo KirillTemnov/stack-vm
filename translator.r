@@ -30,20 +30,39 @@ translator: context [
        debase/base copy/part skip to-hex i 4 4 16
     ]
 
-    replace-labels: func [
-        {Replace labels to numbers in blocks or code}
+    substitute-labels-to-values: func [
+        {Replace labels in `code` block mathed commands from `commands-list` to values
+         from `label-value-hash`.
+         This function places offset from begining of code or data in appropriate blocks
+         (depends on `code` value)
+        }
         code [block!]
-        labels [hash!]
+        label-value-hash [hash!]
+        commands-list [block!] "block of strings with command names"
         /local r cmd
     ][
         r: copy []
         foreach code-line code [
             cmd: first code-line
-            either found? find opcodes/label-commands cmd [
-                append/only r join join [] cmd select labels second code-line
+            either found? find commands-list cmd [
+                append/only r join join [] cmd select label-value-hash second code-line
             ][
                 append/only r join [] code-line
             ]
+        ]
+        r
+    ]
+
+    generate-offsets-for-data: func [
+        {Generate offsets for data and merge }
+        data-hash "hash with data and and object {val, skip}"
+        /local r obj
+    ][
+        r: to-hash []
+        forskip data-hash 2 [
+            append r first data-hash
+            obj: second data-hash
+            append r obj/skip
         ]
         r
     ]
@@ -164,10 +183,21 @@ translator: context [
            line-num: line-num + 1
        ]
 
+       code-wo-labels: substitute-labels-to-values code-blk to-hash labels opcodes/label-commands
+       full-processed-code: substitute-labels-to-values code-wo-labels generate-offsets-for-data data-blk opcodes/data-manipulation-commands
+       if debug [
+           print ["code-wo-labels" probe code-wo-labels]
+           print ["full-processed-code" probe full-processed-code]
+       ]
+
        ; TODO replace all labels to values in code
        ; print ["Data section: " probe data-blk]
        ;
-       block-to-bytecode replace-labels code-blk to-hash labels join-hash-data data-blk
+       block-to-bytecode full-processed-code join-hash-data data-blk
+         ; substitute-labels-to-values
+         ;   substitute-labels-to-values code-blk to-hash labels opcodes/label-commands
+         ;   generate-offsets-for-data data-blk opcodes/data-manipulation-commands
+
     ]
 
 

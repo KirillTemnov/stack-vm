@@ -106,7 +106,8 @@ vitrual-mashine: context [
     ]
 
     dump-state: does [ {Dump mashine status}
-        print ["DATA-STACK: " probe data-stack]
+        print ["DATA-STACK: "  data-stack]
+        print ["MEMORY:"  memory]
         print ["Regs: "  "PC: " registers/pc]
     ]
 
@@ -116,14 +117,14 @@ vitrual-mashine: context [
     inc: func [
         {Increment byte value}
         x [binary!]
-    ] [
+    ][
         int-to-word  1 + word-to-int x
     ]
 
     dec: func [
         {Decrement byte value}
         x [binary!]
-    ] [
+    ][
         int-to-word  -1 + word-to-int x
     ]
 
@@ -132,7 +133,7 @@ vitrual-mashine: context [
         first-op [binary!]
         second-op [binary!]
         /local i1 i2
-    ] [
+    ][
         i1: word-to-int first-op
         i2: word-to-int second-op
         int-to-word i1 + i2
@@ -143,11 +144,32 @@ vitrual-mashine: context [
         first-op  [binary!]
         second-op [binary!]
         /local i1 i2
-    ] [
+    ][
         i1: word-to-int first-op
         i2: word-to-int second-op
         int-to-word i1 - i2
     ]
+
+
+    load-to-stack: func [
+        {Load word from memory on top of stack}
+        offset "offset from start of memory (zero-based)"
+    ][
+        ; offset points to 0 element which is 1 in rebol
+        insert data-stack get-word memory 1 + word-to-int offset
+    ]
+
+    stor-to-memory: func [
+        {Store value from top of stack to memory}
+        offset "offset from start of memory (zero-based)"
+        /local w
+    ][
+    ;  TODO implement functio
+    ;        w: pick 1 data-stack
+    ;     change skip memory 1 w/1 ...
+    ;  add put-word function?
+    ]
+
 
     call-proc: func [           ; TODO reserve local stack for data
         {Call remote proc}
@@ -163,6 +185,7 @@ vitrual-mashine: context [
         registers/pc: take/last return-stack
         resume
     ]
+
     ; end of
     ; --------------------------------------------------------------------------------
 
@@ -206,62 +229,49 @@ vitrual-mashine: context [
 
         registers/pc: registers/pc + size
         switch/default select opcodes/opcode-names op [
-            ; nop #{00} !!!
             "nop" []
 
-            ; push #{01}
             "push" [insert data-stack arg]
 
-            ; add #{02}
             "add"  [with-two-args-do data-stack :add]
 
-            ; sub #{03}
             "sub"  [with-two-args-do data-stack :sub]
 
             ; mul
             ;#{04} [with-two-args-do data-stack :*]
 
-            ; and #{05}
             "and" [with-one-arg-do data-stack :and]
 
-            ; or #{06}
             "or" [with-two-args-do data-stack :or]
 
-            ; xor #{07}
             "xor" [with-two-args-do data-stack :xor]
 
-            ; inc #{08}
             "inc" [with-one-arg-do data-stack :inc]
 
-            ; dec #{09}
             "dec" [with-one-arg-do data-stack :dec]
 
-            ; pop/drop #{0A}
             "drop" [remove data-stack]
 
-            ; dup #{0B}
             "dup" [insert data-stack pick data-stack 1]
 
-            ; over #{0C}
             "over" [insert data-stack pick data-stack 2]
 
-            ; swap #{0D}
             "swap" [swap-stack-values data-stack]
 
             "call" [call-proc arg]
 
             "retn" [proc-return]
 
-            ; stat #{98}
+            "load" [load-to-stack arg]
+
+            "stor" [stor-to-memory arg]
+
             "stat" [dump-state]
 
-            ; halt #{99}
             "halt" [
-                dump-state
                 reset
                 halt-flag: true
                 return false
-
             ]
         ]
         [
@@ -292,7 +302,8 @@ vitrual-mashine: context [
         {Execute program in virtual mashine}
         program
         /local code-and-data
-    ] [
+    ][
+        halt-flag: false        ; TODO  add explicit reset to reset fn?
         code-and-data: split-code-and-data program
         memory: first code-and-data
         code: second code-and-data
@@ -303,8 +314,11 @@ vitrual-mashine: context [
     resume: does [{Resume execution from last point}
         unless halt-flag [
             last-result: true
-            while [last-result] [ last-result: apply-incstruction ]
+            while [last-result and false = halt-flag] [
+              last-result: apply-incstruction
+          ]
         ]
+        true
     ]
 
 ]

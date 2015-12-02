@@ -3,15 +3,16 @@
 ; --------------------------------------------------------------------------------
 .data
    num1  sw  1
-   num2  sw  2
+   num2  sw  5
    num3  sw  4
 
 .code
 main:
-	push 1
-        push 2
-        push 4
+	load num1
+	load num2
+	load num3
         call make_sum_of_three
+	stor num1
 	stat
         halt                    ; int0 ?
 
