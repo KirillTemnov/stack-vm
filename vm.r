@@ -82,16 +82,15 @@ vitrual-mashine: context [
 
 
     get-word: func [
-        {Get word (2 bytes) from binary}
-        from
-        index
+        {Get word (2 bytes) located by `index` from `data-raw`}
+        data-raw
+        offset
         /local first-byte second-byte
     ][
         if error?
          try [
-            first-byte: to-binary to-char pick from index
-            index: index + 1
-            second-byte: to-binary to-char pick from index
+            first-byte: to-binary to-char pick data-raw offset
+            second-byte: to-binary to-char pick data-raw offset + 1
         ][
             print "Error fetching word"
             return #{0000}              ;
@@ -99,9 +98,23 @@ vitrual-mashine: context [
         join first-byte second-byte     ; big endian
     ]
 
+    put-word: func [
+        {Put word (2 bytes) into `data-raw` with `offset`.}
+        data-raw
+        offset
+        word
+        /local first-byte second-byte
+    ][
+        first-byte: to-binary to-char word/1
+        second-byte: to-binary to-char word/2
+        change skip data-raw offset first-byte
+        change skip data-raw offset + 1 second-byte
+    ]
+
     reset: does [
         if debug [print "reset mashine"]
         clear data-stack
+        clear memory
         registers/pc: 1
     ]
 
@@ -153,21 +166,19 @@ vitrual-mashine: context [
 
     load-to-stack: func [
         {Load word from memory on top of stack}
-        offset "offset from start of memory (zero-based)"
+        offset [binary!] "offset from start of memory (zero-based)"
     ][
         ; offset points to 0 element which is 1 in rebol
         insert data-stack get-word memory 1 + word-to-int offset
     ]
 
+
     stor-to-memory: func [
         {Store value from top of stack to memory}
-        offset "offset from start of memory (zero-based)"
+        offset [binary!] "offset from start of memory (zero-based)"
         /local w
     ][
-    ;  TODO implement functio
-    ;        w: pick 1 data-stack
-    ;     change skip memory 1 w/1 ...
-    ;  add put-word function?
+       put-word memory word-to-int offset data-stack/1
     ]
 
 
