@@ -15,7 +15,7 @@ test: make test-suite [name: "VM tests"]
 
 
 test/assert [equal? [#{} #{0200}] vm/split-code-and-data #{00000200}]
-test/assert [equal? [#{AAAABBBB} #{0100}] vm/split-code-and-data #{0002AAAABBBB0100}]
+test/assert [equal? [#{AAAABBBB} #{0100}] vm/split-code-and-data #{0004AAAABBBB0100}]
 
 test/assert [equal? #{0000} vm/int-to-word 0]
 test/assert [equal? #{0001} vm/int-to-word 1]
@@ -31,6 +31,25 @@ test/assert [equal? 65440 vm/word-to-int #{FFA0}]
 
 test/assert [equal? #{1122} vm/get-word #{00112233} 2]
 test/assert [equal? #{2233} vm/get-word #{00112233} 3]
+
+; load-to-stack
+vm/data-stack: []
+vm/memory: #{0011223344}
+vm/load-to-stack #{0000}
+test/assert [equal? [#{0011}] vm/data-stack]
+vm/load-to-stack #{0003}
+test/assert [equal? [#{3344} #{0011}] vm/data-stack]
+
+
+; stor to memory
+vm/data-stack: [#{AABB} #{DDEF}]
+vm/stor-to-memory #{0000}
+test/assert [equal? #{AABB223344} vm/memory]
+remove vm/data-stack
+vm/stor-to-memory #{0001}
+test/assert [equal? #{AADDEF3344} vm/memory]
+vm/reset
+
 
 ; TODO
 ; this part not work, strange ...

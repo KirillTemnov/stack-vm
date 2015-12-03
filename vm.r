@@ -3,12 +3,15 @@ REBOL [
     File: %vm.r
     Author: "Kirill Temnov"
     Date: 02/11/2015
-    Version: 0.2.0
     ]
 
 do %opcodes.r
 
 vitrual-mashine: context [
+    opcodes: make opcodes-instance []
+
+    debug: false                ; debug flag
+    halt-flag: false            ; halt flag, do not set!
 
     int-to-word: func [
         {Convert integer number to a word (binary!)}
@@ -79,16 +82,15 @@ vitrual-mashine: context [
 
 
     get-word: func [
-        {Get word (2 bytes) from binary}
-        from
-        index
+        {Get word (2 bytes) located by `index` from `data-raw`}
+        data-raw
+        offset
         /local first-byte second-byte
     ][
         if error?
          try [
-            first-byte: to-binary to-char pick from index
-            index: index + 1
-            second-byte: to-binary to-char pick from index
+            first-byte: to-binary to-char pick data-raw offset
+            second-byte: to-binary to-char pick data-raw offset + 1
         ][
             print "Error fetching word"
             return #{0000}              ;
@@ -96,14 +98,29 @@ vitrual-mashine: context [
         join first-byte second-byte     ; big endian
     ]
 
+    put-word: func [
+        {Put word (2 bytes) into `data-raw` with `offset`.}
+        data-raw
+        offset
+        word
+        /local first-byte second-byte
+    ][
+        first-byte: to-binary to-char word/1
+        second-byte: to-binary to-char word/2
+        change skip data-raw offset first-byte
+        change skip data-raw offset + 1 second-byte
+    ]
+
     reset: does [
-        print "reset mashine"
+        if debug [print "reset mashine"]
         clear data-stack
+        clear memory
         registers/pc: 1
     ]
 
     dump-state: does [ {Dump mashine status}
-        print ["DATA-STACK: " probe data-stack]
+        print ["DATA-STACK: "  data-stack]
+        print ["MEMORY:"  memory]
         print ["Regs: "  "PC: " registers/pc]
     ]
 
@@ -113,14 +130,14 @@ vitrual-mashine: context [
     inc: func [
         {Increment byte value}
         x [binary!]
-    ] [
+    ][
         int-to-word  1 + word-to-int x
     ]
 
     dec: func [
         {Decrement byte value}
         x [binary!]
-    ] [
+    ][
         int-to-word  -1 + word-to-int x
     ]
 
@@ -129,7 +146,7 @@ vitrual-mashine: context [
         first-op [binary!]
         second-op [binary!]
         /local i1 i2
-    ] [
+    ][
         i1: word-to-int first-op
         i2: word-to-int second-op
         int-to-word i1 + i2
@@ -140,11 +157,30 @@ vitrual-mashine: context [
         first-op  [binary!]
         second-op [binary!]
         /local i1 i2
-    ] [
+    ][
         i1: word-to-int first-op
         i2: word-to-int second-op
         int-to-word i1 - i2
     ]
+
+
+    load-to-stack: func [
+        {Load word from memory on top of stack}
+        offset [binary!] "offset from start of memory (zero-based)"
+    ][
+        ; offset points to 0 element which is 1 in rebol
+        insert data-stack get-word memory 1 + word-to-int offset
+    ]
+
+
+    stor-to-memory: func [
+        {Store value from top of stack to memory}
+        offset [binary!] "offset from start of memory (zero-based)"
+        /local w
+    ][
+       put-word memory word-to-int offset data-stack/1
+    ]
+
 
     call-proc: func [           ; TODO reserve local stack for data
         {Call remote proc}
@@ -160,17 +196,18 @@ vitrual-mashine: context [
         registers/pc: take/last return-stack
         resume
     ]
+
     ; end of
     ; --------------------------------------------------------------------------------
 
-    one-byte-instructions: generate-one-byte-instructions
-    two-byte-instructions: generate-two-byte-instructions
+    one-byte-instructions: opcodes/generate-one-byte-instructions
+    three-byte-instructions: opcodes/generate-three-byte-instructions
 
     get-instruction-size: func [
         {Get size of instruction in bytes}
         instruction
     ][
-        if none <> find two-byte-instructions instruction  [
+        if none <> find three-byte-instructions instruction  [
             ; one byte - command, 2 bytes - data
             return 3
         ]
@@ -192,68 +229,60 @@ vitrual-mashine: context [
         ]
 
         size: get-instruction-size op
-        print ["calling" select opcode-names op "with size" size]
         arg: none
         if size > 1 [
             arg: get-word code (registers/pc + 1)
         ]
+        if debug [
+            print ["calling" select opcodes/opcode-names op "{" arg "}" "with size" size]
+            print ["PC: " registers/pc "^/"]
+        ]
+
         registers/pc: registers/pc + size
-        switch/default select opcode-names op [
-            ; nop #{00} !!!
+        switch/default select opcodes/opcode-names op [
             "nop" []
 
-            ; push #{01}
             "push" [insert data-stack arg]
 
-            ; add #{02}
             "add"  [with-two-args-do data-stack :add]
 
-            ; sub #{03}
             "sub"  [with-two-args-do data-stack :sub]
 
             ; mul
             ;#{04} [with-two-args-do data-stack :*]
 
-            ; and #{05}
             "and" [with-one-arg-do data-stack :and]
 
-            ; or #{06}
             "or" [with-two-args-do data-stack :or]
 
-            ; xor #{07}
             "xor" [with-two-args-do data-stack :xor]
 
-            ; inc #{08}
             "inc" [with-one-arg-do data-stack :inc]
 
-            ; dec #{09}
             "dec" [with-one-arg-do data-stack :dec]
 
-            ; pop/drop #{0A}
             "drop" [remove data-stack]
 
-            ; dup #{0B}
             "dup" [insert data-stack pick data-stack 1]
 
-            ; over #{0C}
             "over" [insert data-stack pick data-stack 2]
 
-            ; swap #{0D}
             "swap" [swap-stack-values data-stack]
 
             "call" [call-proc arg]
 
             "retn" [proc-return]
 
-            ; stat #{98}
+            "load" [load-to-stack arg]
+
+            "stor" [stor-to-memory arg]
+
             "stat" [dump-state]
 
-            ; halt #{99}
             "halt" [
-                dump-state
                 reset
+                halt-flag: true
                 return false
-
             ]
         ]
         [
@@ -266,14 +295,16 @@ vitrual-mashine: context [
 
     split-code-and-data: func [
         {Split binary sequence into code and data
-         first word in binary sequence is length of data section in WORDS (N),
+         first word in binary sequence is length of data section in BYTES (N),
          code data starts after N + 1 words and ends at end of sequence}
+
         data [binary!]
-        /local size code script-data
+        /local size code script-data word-size
         ][
+        word-size: 2            ; word size in bytes
         size: word-to-int get-word data 1
-        code: copy/part skip data (size * 2 + 2) length? data
-        script-data: copy/part skip data size size * 2
+        code: copy/part skip data size + word-size length? data
+        script-data: copy/part skip data word-size size
         do remold [script-data code]
     ]
 
@@ -282,7 +313,8 @@ vitrual-mashine: context [
         {Execute program in virtual mashine}
         program
         /local code-and-data
-    ] [
+    ][
+        halt-flag: false        ; TODO  add explicit reset to reset fn?
         code-and-data: split-code-and-data program
         memory: first code-and-data
         code: second code-and-data
@@ -291,8 +323,13 @@ vitrual-mashine: context [
     ]
 
     resume: does [{Resume execution from last point}
-        last-result: true
-        while [last-result] [ last-result: apply-incstruction ]
+        unless halt-flag [
+            last-result: true
+            while [last-result and false = halt-flag] [
+              last-result: apply-incstruction
+          ]
+        ]
+        true
     ]
 
 ]
