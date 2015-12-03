@@ -11,10 +11,12 @@ do %../translator.r
 
 test: make test-suite [name: "Translator tests"]
 
+opcodes: make opcodes-instance []
+
 with-empty-data: func [
     operator
 ][
-    join #{0000} select opcodes operator
+    join #{0000} select opcodes/opcodes operator
 ]
 
 
@@ -133,9 +135,17 @@ test/assert [equal? with-empty-data "halt" t/block-to-bytecode [["halt"]] #{}]
 ;     t/block-to-bytecode [["push" "9874"]]
 ; ]
 
-;;  replace labels
+;;  substitute-labels-to-values
 test/assert [equal?
     [["push" "232"] ["call" 110] ["halt"]]
-    t/replace-labels [["push" "232"] ["call" "RPC"] ["halt"]] to-hash ["RPC" 110]]
+    t/substitute-labels-to-values [["push" "232"] ["call" "RPC"] ["halt"]] to-hash ["RPC" 110] opcodes/label-commands]
+
+
+;; join-hash-data
+h-data: to-hash ["foo"]
+append h-data make object! [val: #{01}]
+append h-data "bar"
+append h-data make object! [val: #{020A}]
+test/assert [equal? #{01020A} t/join-hash-data h-data]
 
 test/stat
