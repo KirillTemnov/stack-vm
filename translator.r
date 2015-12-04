@@ -68,27 +68,6 @@ translator: context [
     ]
 
 
-   store-line: func [
-       {Store line inside resulting block. Used by `source-to-block`.}
-       container [block!] "container to store"
-       cmd-len [integer!] "command length"
-       cmd "command"
-       /local bytes
-   ][
-       bytes: bytes + cmd-len
-       cmd: trim/with cmd ":" ; remove last :
-       switch/default cmd-len [
-           0 [append container join join [] cmd bytes]
-
-           1 [append/only container join [] cmd]
-
-           3 [append/only container parse cmd ""]
-
-       ][
-           make error! reform ["This is error. len:"  cmd-len "command:" cmd]
-       ]
-   ]
-
    store-var: func [
        {Store data label value and offset.
        Process only template:
@@ -106,8 +85,6 @@ translator: context [
 
        ; add hash key and value in separate lines
        if 0 < length? container [ bytes-skip: len + get in last container 'skip]
-           ;last-skip: last container
-           ; in last container 'skip
 
        append/only container label
        append/only container make object! [val: value skip: bytes-skip]
@@ -129,7 +106,7 @@ translator: context [
    ]
 
 
-    source-to-block: func [
+    run: func [
        {Translate source assembler code to a block! of commands}
        source [string! file!] "source code"
        /local
@@ -143,6 +120,7 @@ translator: context [
          trimmed-line
          code-wo-labels
          full-processed-code
+         store-code
     ][
        lines: parse/all source "^/"
        code-blk: copy []
@@ -151,6 +129,28 @@ translator: context [
        mode: none               ; one of 'code 'data
        line-num: 1
        bytes: 1
+
+       store-line: func [
+           {Store line inside resulting block. Used by `source-to-block`.}
+           container [block!] "container to store"
+           cmd-len [integer!] "command length"
+           cmd "command"
+           ; bytes global for this func
+       ][
+           bytes: bytes + cmd-len
+           cmd: trim/with cmd ":" ; remove last :
+           switch/default cmd-len [
+               0 [append container join join [] cmd bytes]
+
+               1 [append/only container join [] cmd]
+
+               3 [append/only container parse cmd none]
+
+           ][
+               make error! reform ["This is error. len:"  cmd-len "command:" cmd]
+           ]
+       ]
+
        foreach line lines [
            trimmed-line: parse/all trim line ";" ; cut off comments part
 
@@ -220,16 +220,6 @@ translator: context [
         ]
         join data code
      ]
-
-
-    run: func [
-       {Translate source code to bytecode and pack it}
-       source [string! file!]   ; read file and not process inside source to block?
-       /local code-and-data code data
-    ][
-       source-to-block source
-    ]
-
 
  ]
 
