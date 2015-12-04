@@ -6,69 +6,15 @@ REBOL [
     ]
 
 do %opcodes.r
+do %utils.r
+
 
 vitrual-mashine: context [
     opcodes: make opcodes-instance []
+    utils: make utils-instance []
 
     debug: false                ; debug flag
-    halt-flag: false            ; halt flag, do not set!
-
-    int-to-word: func [
-        {Convert integer number to a word (binary!)}
-        i [integer!]
-    ][
-        debase/base copy/part skip to-hex i 4 4 16
-    ]
-
-    word-to-int: func [
-        {Convert binary word to integer}
-        w [binary!]
-        /local b1 b2
-    ][
-        b1: pick w 1
-        b2: pick w 2
-        ; shift first byte to the left on 8 bits
-        b2 + shift/left b1 8
-    ]
-
-    swap-stack-values: func [
-        {Swap two top level stack values}
-        stack [block!]
-        /local a b
-    ][
-        a: pick stack 1
-        b: pick stack 2
-        remove/part stack 2
-        insert stack a
-        insert stack b
-        stack
-    ]
-
-
-    with-one-arg-do: func [
-       { Execute fn on top level stack value,
-         push result on stack and return stack}
-        stack [block!]
-        fn
-    ][
-        val: fn (first stack)
-        remove/part stack 1
-        insert stack val
-        stack
-    ]
-
-    with-two-args-do: func [
-      { Execute fn on two top level stack values,
-        pop them from stack,
-        push result on stack and return stack}
-        stack [block!]
-        fn
-    ] [
-        val: fn (first stack)  (second stack)
-        remove/part stack 2
-        insert stack val
-        stack
-    ]
+    halt-flag: false            ; halt flag, set and reset by vm functions
 
     data-stack: []
     return-stack: []
@@ -80,39 +26,9 @@ vitrual-mashine: context [
         zf: 0                          ; zero flag
         ]
 
-
-    get-word: func [
-        {Get word (2 bytes) located by `index` from `data-raw`}
-        data-raw
-        offset
-        /local first-byte second-byte
-    ][
-        if error?
-         try [
-            first-byte: to-binary to-char pick data-raw offset
-            second-byte: to-binary to-char pick data-raw offset + 1
-        ][
-            print "Error fetching word"
-            return #{0000}              ;
-        ]
-        join first-byte second-byte     ; big endian
-    ]
-
-    put-word: func [
-        {Put word (2 bytes) into `data-raw` with `offset`.}
-        data-raw
-        offset
-        word
-        /local first-byte second-byte
-    ][
-        first-byte: to-binary to-char word/1
-        second-byte: to-binary to-char word/2
-        change skip data-raw offset first-byte
-        change skip data-raw offset + 1 second-byte
-    ]
-
-    reset: does [
+    reset: does [ {Reset mashine state}
         if debug [print "reset mashine"]
+        halt-flag: false
         clear data-stack
         clear memory
         registers/pc: 1
@@ -131,14 +47,14 @@ vitrual-mashine: context [
         {Increment byte value}
         x [binary!]
     ][
-        int-to-word  1 + word-to-int x
+        utils/int-to-word  1 + utils/word-to-int x
     ]
 
     dec: func [
         {Decrement byte value}
         x [binary!]
     ][
-        int-to-word  -1 + word-to-int x
+        utils/int-to-word  -1 + utils/word-to-int x
     ]
 
     add: func [
@@ -147,9 +63,9 @@ vitrual-mashine: context [
         second-op [binary!]
         /local i1 i2
     ][
-        i1: word-to-int first-op
-        i2: word-to-int second-op
-        int-to-word i1 + i2
+        i1: utils/word-to-int first-op
+        i2: utils/word-to-int second-op
+        utils/int-to-word i1 + i2
     ]
 
     sub: func [
@@ -158,9 +74,9 @@ vitrual-mashine: context [
         second-op [binary!]
         /local i1 i2
     ][
-        i1: word-to-int first-op
-        i2: word-to-int second-op
-        int-to-word i1 - i2
+        i1: utils/word-to-int first-op
+        i2: utils/word-to-int second-op
+        utils/int-to-word i1 - i2
     ]
 
 
@@ -169,7 +85,8 @@ vitrual-mashine: context [
         offset [binary!] "offset from start of memory (zero-based)"
     ][
         ; offset points to 0 element which is 1 in rebol
-        insert data-stack get-word memory 1 + word-to-int offset
+        print ["LTS. memory:" memory "^/"]
+        insert data-stack utils/get-word memory 1 + utils/word-to-int offset
     ]
 
 
@@ -178,7 +95,7 @@ vitrual-mashine: context [
         offset [binary!] "offset from start of memory (zero-based)"
         /local w
     ][
-       put-word memory word-to-int offset data-stack/1
+       utils/put-word memory utils/word-to-int offset data-stack/1
     ]
 
 
@@ -187,7 +104,7 @@ vitrual-mashine: context [
         addr "remote proc addr"
     ][
         append return-stack registers/pc
-        registers/pc: word-to-int addr
+        registers/pc: utils/word-to-int addr
         resume
     ]
 
@@ -231,7 +148,7 @@ vitrual-mashine: context [
         size: get-instruction-size op
         arg: none
         if size > 1 [
-            arg: get-word code (registers/pc + 1)
+            arg: utils/get-word code (registers/pc + 1)
         ]
         if debug [
             print ["calling" select opcodes/opcode-names op "{" arg "}" "with size" size]
@@ -244,22 +161,22 @@ vitrual-mashine: context [
 
             "push" [insert data-stack arg]
 
-            "add"  [with-two-args-do data-stack :add]
+            "add"  [utils/with-two-args-do data-stack :add]
 
-            "sub"  [with-two-args-do data-stack :sub]
+            "sub"  [utils/with-two-args-do data-stack :sub]
 
             ; mul
             ;#{04} [with-two-args-do data-stack :*]
 
-            "and" [with-one-arg-do data-stack :and]
+            "and" [utils/with-one-arg-do data-stack :and]
 
-            "or" [with-two-args-do data-stack :or]
+            "or" [utils/with-two-args-do data-stack :or]
 
-            "xor" [with-two-args-do data-stack :xor]
+            "xor" [utils/with-two-args-do data-stack :xor]
 
-            "inc" [with-one-arg-do data-stack :inc]
+            "inc" [utils/with-one-arg-do data-stack :inc]
 
-            "dec" [with-one-arg-do data-stack :dec]
+            "dec" [utils/with-one-arg-do data-stack :dec]
 
             "drop" [remove data-stack]
 
@@ -267,7 +184,7 @@ vitrual-mashine: context [
 
             "over" [insert data-stack pick data-stack 2]
 
-            "swap" [swap-stack-values data-stack]
+            "swap" [utils/swap-stack-values data-stack]
 
             "call" [call-proc arg]
 
@@ -302,7 +219,7 @@ vitrual-mashine: context [
         /local size code script-data word-size
         ][
         word-size: 2            ; word size in bytes
-        size: word-to-int get-word data 1
+        size: utils/word-to-int utils/get-word data 1
         code: copy/part skip data size + word-size length? data
         script-data: copy/part skip data word-size size
         do remold [script-data code]
@@ -314,11 +231,11 @@ vitrual-mashine: context [
         program
         /local code-and-data
     ][
-        halt-flag: false        ; TODO  add explicit reset to reset fn?
+        reset
         code-and-data: split-code-and-data program
         memory: first code-and-data
         code: second code-and-data
-        reset
+
         resume
     ]
 

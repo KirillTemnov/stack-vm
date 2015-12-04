@@ -1,4 +1,4 @@
-#!/usr/bin/env rebol
+#!/usr/bin/env rebol -cs
 
 REBOL [
     Title: "Translator for simple stack vitrual mashine"
@@ -9,11 +9,14 @@ REBOL [
 
 
 do %opcodes.r
+do %utils.r
 
 translator: context [
     debug: false
 
     opcodes: make opcodes-instance []
+    utils: make utils-instance []
+
 
     one-byte-command: opcodes/generate-one-byte-rules
     three-byte-command: opcodes/generate-three-byte-rules
@@ -23,12 +26,6 @@ translator: context [
     list-of-commands: opcodes/opcodes
 
 
-    int-to-word: func [
-       {Convert integer number to a word (binary!)}
-       i [integer!] "source (positive) integer"
-    ][
-       debase/base copy/part skip to-hex i 4 4 16
-    ]
 
     substitute-labels-to-values: func [
         {Replace labels in `code` block mathed commands from `commands-list` to values
@@ -79,7 +76,7 @@ translator: context [
    ][
        splited: parse/all data-string "sw"
        label: trim/all first splited
-       value: int-to-word to-integer trim/all last splited
+       value: utils/int-to-word to-integer trim/all last splited
        len: 2             ; for now length always 2 words
        bytes-skip: 0
 
@@ -206,7 +203,7 @@ translator: context [
        /local code op
     ][
         code: copy #{}
-        data: join int-to-word length? binary-data binary-data
+        data: join utils/int-to-word length? binary-data binary-data
         foreach line commands [
             op: first line
             any [
@@ -214,7 +211,7 @@ translator: context [
                  append code select list-of-commands op
               ]
               if found? find opcodes/three-byte-command-names op [
-                  append code join select list-of-commands op int-to-word to-integer second line
+                  append code join select list-of-commands op utils/int-to-word to-integer second line
               ]
            ]
         ]
