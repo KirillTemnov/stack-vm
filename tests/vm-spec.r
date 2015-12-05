@@ -12,39 +12,105 @@ vm: make vitrual-mashine []
 
 test: make test-suite [name: "VM tests"]
 
+; reset
+use [test-vm] [
+    test-vm: make vitrual-mashine [
+        halt-flag: true
+        data-stack: [#{FA00} #{0783}]
+        memory: #{123456789009874321}
+        return-stack: [#{0001} #{0002} #{0003}]
+    ]
+    test-vm/reset
+    test/assert [
+        and and and
+        equal? false test-vm/halt-flag
+        equal? [] test-vm/data-stack
+        equal? #{} test-vm/memory
+        equal? [] test-vm/return-stack
+    ]
+]
+
+; inc
+test/assert [equal? #{0002} vm/inc #{0001}]
+test/assert [equal? #{FF10} vm/inc #{FF0F}]
+test/assert [equal? #{0000} vm/inc #{FFFF}] ; carry flag
+
+; dec
+test/assert [equal? #{0000} vm/dec #{0001}]
+test/assert [equal? #{FFFF} vm/dec #{0000}] ; carry flag
+test/assert [equal? #{000F} vm/dec #{0010}]
+
+; add
+test/assert [equal? #{002F} vm/add #{000F} #{0020}]
+test/assert [equal? #{0211} vm/add #{0111} #{0100}]
+test/assert [equal? #{2221} vm/add #{9999} #{8888}] ; carry flag
+
+; sub
+test/assert [equal? #{8001} vm/sub #{8000} #{FFFF}] ; carry flag
+test/assert [equal? #{0167} vm/sub #{0300} #{0199}]
+test/assert [equal? #{FF1D} vm/sub #{0017} #{00FA}] ; carry flag
 
 
+use [test-vm] [
+    test-vm: make vitrual-mashine [memory: #{0011223344}]
+
+    ; load-to-stack
+    test-vm/load-to-stack #{0000}
+    test/assert [equal? [#{0011}] test-vm/data-stack]
+    test-vm/load-to-stack #{0003}
+    test/assert [equal? [#{3344} #{0011}] test-vm/data-stack]
+]
+
+use [test-vm] [
+    ; stor to memory
+    test-vm: make vitrual-mashine [
+        memory: #{0011223344}
+        data-stack: [#{AABB} #{DDEF}]
+    ]
+    test-vm/stor-to-memory #{0000}
+    test/assert [equal? #{AABB223344} test-vm/memory]
+    remove test-vm/data-stack
+    test-vm/stor-to-memory #{0001}
+    test/assert [equal? #{AADDEF3344} test-vm/memory]
+]
+
+
+
+; call-proc
+
+; proc-return
+
+
+; get-instruction-size / see instructions in opcodes
+test/assert [equal? 3 vm/get-instruction-size #{02}]
+test/assert [equal? 3 vm/get-instruction-size #{10}]
+test/assert [equal? 3 vm/get-instruction-size #{0E}]
+test/assert [equal? 3 vm/get-instruction-size #{0F}]
+test/assert [equal? 1 vm/get-instruction-size #{00}]
+test/assert [equal? 1 vm/get-instruction-size #{01}]
+test/assert [equal? 1 vm/get-instruction-size #{03}]
+test/assert [equal? 1 vm/get-instruction-size #{04}]
+test/assert [equal? 1 vm/get-instruction-size #{05}]
+test/assert [equal? 1 vm/get-instruction-size #{06}]
+test/assert [equal? 1 vm/get-instruction-size #{07}]
+test/assert [equal? 1 vm/get-instruction-size #{08}]
+test/assert [equal? 1 vm/get-instruction-size #{09}]
+test/assert [equal? 1 vm/get-instruction-size #{0A}]
+test/assert [equal? 1 vm/get-instruction-size #{0B}]
+test/assert [equal? 1 vm/get-instruction-size #{0C}]
+test/assert [equal? 1 vm/get-instruction-size #{0D}]
+test/assert [equal? 1 vm/get-instruction-size #{11}]
+test/assert [equal? 1 vm/get-instruction-size #{98}]
+test/assert [equal? 1 vm/get-instruction-size #{88}]
+
+; apply-instruction
+
+; split-code-and-data
 test/assert [equal? [#{} #{0200}] vm/split-code-and-data #{00000200}]
 test/assert [equal? [#{AAAABBBB} #{0100}] vm/split-code-and-data #{0004AAAABBBB0100}]
 
+; run
 
-; load-to-stack
-vm/data-stack: []
-vm/memory: #{0011223344}
-vm/load-to-stack #{0000}
-test/assert [equal? [#{0011}] vm/data-stack]
-vm/load-to-stack #{0003}
-test/assert [equal? [#{3344} #{0011}] vm/data-stack]
-
-
-; stor to memory
-vm/data-stack: [#{AABB} #{DDEF}]
-vm/stor-to-memory #{0000}
-test/assert [equal? #{AABB223344} vm/memory]
-remove vm/data-stack
-vm/stor-to-memory #{0001}
-test/assert [equal? #{AADDEF3344} vm/memory]
-vm/reset
-
-
-
-
-; reset
-; inc
-; dec
-; add
-; sub
-; get-instruction-size ??
-;
+; resume
 
 test/stat

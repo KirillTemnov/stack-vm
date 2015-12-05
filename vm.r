@@ -18,8 +18,8 @@ vitrual-mashine: context [
 
     data-stack: []
     return-stack: []
-    memory: []                  ; program memory
-    code: #{}                           ; program code, loaded in vm
+    memory: #{}                        ; program memory
+    code: #{}                          ; program code, loaded in vm
     registers: make object! [
         pc: 1                          ; program count
         cf: 0                          ; carry flag
@@ -27,17 +27,18 @@ vitrual-mashine: context [
         ]
 
     reset: does [ {Reset mashine state}
-        if debug [print "reset mashine"]
+        if debug [print "reset mashine"] ;need to reset code?
         halt-flag: false
         clear data-stack
         clear memory
+        clear return-stack
         registers/pc: 1
     ]
 
     dump-state: does [ {Dump mashine status}
-        print ["DATA-STACK: "  data-stack]
-        print ["MEMORY:"  memory]
-        print ["Regs: "  "PC: " registers/pc]
+        print ["DATA-STACK: "  mold data-stack]
+        print ["MEMORY:"  mold memory]
+        print ["Regs: "  mold registers]
     ]
 
     ;; ------------------------------------------------------------
@@ -79,13 +80,11 @@ vitrual-mashine: context [
         utils/int-to-word i1 - i2
     ]
 
-
     load-to-stack: func [
         {Load word from memory on top of stack}
         offset [binary!] "offset from start of memory (zero-based)"
     ][
         ; offset points to 0 element which is 1 in rebol
-        print ["LTS. memory:" memory "^/"]
         insert data-stack utils/get-word memory 1 + utils/word-to-int offset
     ]
 
@@ -122,17 +121,15 @@ vitrual-mashine: context [
 
     get-instruction-size: func [
         {Get size of instruction in bytes}
-        instruction
+        instruction [binary!]
     ][
-        if none <> find three-byte-instructions instruction  [
-            ; one byte - command, 2 bytes - data
-            return 3
-        ]
+        ; one byte - command, 2 bytes - data
+        if found? find three-byte-instructions instruction  [return 3]
         ;if none <> find one-byte-instructions instruction  [return 1]
         return 1                        ; unknown instruction size: 1 byte
     ]
 
-    apply-incstruction: func [
+    apply-instruction: func [
         {Apply single insruction.
          return true if instruction valid and not halt,
          otherwise, return false}       ;
@@ -243,7 +240,7 @@ vitrual-mashine: context [
         unless halt-flag [
             last-result: true
             while [last-result and false = halt-flag] [
-              last-result: apply-incstruction
+              last-result: apply-instruction
           ]
         ]
         true
