@@ -41,7 +41,7 @@ vm: make vitrual-mashine [debug: true]
 
 For now, vm use only integer values, that fit in one word (#{FFFF}). Negative values **partially supported**.
 
-### Quick quide on assembler
+### Quick guide on assembler
 
 Each assembly file must contain `.code` section. Program execution started from first instruction after begining of `.code` section.
 
