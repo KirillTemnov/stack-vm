@@ -48,15 +48,18 @@ opcodes-instance: context [
         "stor"    #{0F}
         "call"    #{10}
         "retn"    #{11}
+        "jmp"     #{20}
+        "jz"      #{21}
+        "jnz"     #{22}
         "stat"    #{98}
         "halt"    #{99}
     ]
 
     opcode-names: reverse-keys-and-vals opcodes
 
-    three-byte-command-names: ["push" "call" "load" "stor"]
+    three-byte-command-names: ["push" "call" "load" "stor" "jmp" "jz" "jnz"]
     one-byte-command-names: difference get-hash-keys opcodes three-byte-command-names
-    label-commands: ["call"]        ; todo jump etc
+    label-commands: ["call" "jmp" "jz" "jnz"]        ; todo jump etc
     data-manipulation-commands: ["load" "stor"]  ; store/load variables
 
     insert-|: func [            ; TODO refactor this?
@@ -87,7 +90,10 @@ opcodes-instance: context [
         [["push" some digit] |
          ["call" some letter] |
          ["load" some letter] |
-         ["stor" some letter]
+         ["stor" some letter] |
+         ["jmp"  some letter] |
+         ["jz"   some letter] |
+         ["jnz"  some letter]
         ]
     ]
 

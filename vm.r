@@ -36,12 +36,21 @@ vitrual-mashine: context [
         clear memory
         clear return-stack
         registers/pc: 1
+        registers/zf: 0
     ]
 
     dump-state: does [ {Dump mashine status}
         print ["DATA-STACK: "  mold data-stack]
         print ["MEMORY:"  mold memory]
         print ["Regs: "  mold registers]
+    ]
+
+    set-zf: func [
+        {Set zero flag if arg is #{0000} and return arg}
+        arg [binary!] "argument"
+    ][
+        registers/zf: either #{0000} = arg [1] [0]
+        arg
     ]
 
     ;; ------------------------------------------------------------
@@ -51,14 +60,14 @@ vitrual-mashine: context [
         {Increment byte value}
         x [binary!]
     ][
-        utils/int-to-word  1 + utils/word-to-int x
+        set-zf utils/int-to-word  1 + utils/word-to-int x
     ]
 
     dec: func [
         {Decrement byte value}
         x [binary!]
     ][
-        utils/int-to-word  -1 + utils/word-to-int x
+        set-zf utils/int-to-word  -1 + utils/word-to-int x
     ]
 
     add: func [
@@ -69,7 +78,7 @@ vitrual-mashine: context [
     ][
         i1: utils/word-to-int first-op
         i2: utils/word-to-int second-op
-        utils/int-to-word i1 + i2
+        set-zf utils/int-to-word i1 + i2
     ]
 
     sub: func [
@@ -80,7 +89,7 @@ vitrual-mashine: context [
     ][
         i1: utils/word-to-int first-op
         i2: utils/word-to-int second-op
-        utils/int-to-word i1 - i2
+        set-zf utils/int-to-word i1 - i2
     ]
 
     load-to-stack: func [
@@ -112,6 +121,21 @@ vitrual-mashine: context [
         registers/pc: take/last return-stack
         resume
     ]
+
+    jump-if-cond: func [
+        {Jump to address if condition}
+        addr [binary!] "address to jump"
+        /zf "zero flag state"
+        zf-val [integer!] "zero flag value"
+    ][
+      registers/pc: either zf [
+          either equal? zf-val registers/zf [utils/word-to-int addr] [ registers/pc]
+      ][
+          utils/word-to-int addr
+      ]
+      resume
+    ]
+
     ; end of vm instructions
     ; --------------------------------------------------------------------------------
 
@@ -133,6 +157,7 @@ vitrual-mashine: context [
         if error? try [op: to-binary to-char pick code registers/pc]
         [
             print "Reach end of code block."
+            halt-flag: true
             return false
         ]
 
@@ -179,6 +204,12 @@ vitrual-mashine: context [
             "call" [call-proc arg]
 
             "retn" [proc-return]
+
+            "jmp"  [jump-if-cond arg]
+
+            "jz"   [jump-if-cond/zf arg 1]
+
+            "jnz"  [jump-if-cond/zf arg 0]
 
             "load" [load-to-stack arg]
 
