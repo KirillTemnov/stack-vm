@@ -42,6 +42,10 @@ test/assert [equal?
     [["load" 2] ["stor" 4]]
     t/substitute-labels-to-values [["load" "A"] ["stor" "B"]] to-hash ["A" 2 "B" 4] opcodes/data-manipulation-commands]
 
+test/assert [equal?
+    [["jmp" 10] ["jz" 17] ["jnz" 6]]
+    t/substitute-labels-to-values [["jmp" "JJ"] ["jz" "JUMP_ON_ZERO"] ["jnz" "jmp_not_0"]] to-hash ["JJ" 10 "JUMP_ON_ZERO" 17 "jmp_not_0" 6] opcodes/label-commands]
+
 
 ; generate-offsets-for-data
 ; helper hash
@@ -77,7 +81,6 @@ test/assert [
 test/assert [equal? #{01020A} t/join-hash-data copy h-data]
 
 ; block-to-bytecode
-
 test/assert [equal? join-with-data "nop"  t/block-to-bytecode [["nop"]]  #{}]
 test/assert [equal? join-with-data "add"  t/block-to-bytecode [["add"]]  #{}]
 test/assert [equal? join-with-data "sub"  t/block-to-bytecode [["sub"]]  #{}]
@@ -92,6 +95,7 @@ test/assert [equal? join-with-data "over" t/block-to-bytecode [["over"]] #{}]
 test/assert [equal? join-with-data "swap" t/block-to-bytecode [["swap"]] #{}]
 test/assert [equal? join-with-data "stat" t/block-to-bytecode [["stat"]] #{}]
 test/assert [equal? join-with-data "halt" t/block-to-bytecode [["halt"]] #{}]
+test/assert [equal? join-with-data "retn" t/block-to-bytecode [["retn"]] #{}]
 
 
 test/assert [equal?
