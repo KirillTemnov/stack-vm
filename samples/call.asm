@@ -20,10 +20,3 @@ make_sum_of_three:
         add
         add
         retn
-
-
-
-
-
-;
-;

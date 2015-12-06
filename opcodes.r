@@ -31,10 +31,11 @@ opcodes-instance: context [
     ]
 
     opcodes: to-hash [
-        "pop"     #{00}
-        "push"    #{01}
-        "add"     #{02}
-        "sub"     #{03}
+        "nop"     #{00}
+        "pop"     #{01}
+        "push"    #{02}
+        "add"     #{03}
+        "sub"     #{04}
         "and"     #{05}
         "or"      #{06}
         "xor"     #{07}

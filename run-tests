@@ -1,4 +1,4 @@
-#!/usr/bin/env rebol
+#!/usr/bin/env rebol -cs
 
 REBOL [
     Title: "Tests suite for stack-vm"

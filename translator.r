@@ -1,4 +1,4 @@
-#!/usr/bin/env rebol
+#!/usr/bin/env rebol -cs
 
 REBOL [
     Title: "Translator for simple stack vitrual mashine"
@@ -9,11 +9,14 @@ REBOL [
 
 
 do %opcodes.r
+do %utils.r
 
 translator: context [
     debug: false
 
     opcodes: make opcodes-instance []
+    utils: make utils-instance []
+
 
     one-byte-command: opcodes/generate-one-byte-rules
     three-byte-command: opcodes/generate-three-byte-rules
@@ -23,12 +26,6 @@ translator: context [
     list-of-commands: opcodes/opcodes
 
 
-    int-to-word: func [
-       {Convert integer number to a word (binary!)}
-       i [integer!] "source (positive) integer"
-    ][
-       debase/base copy/part skip to-hex i 4 4 16
-    ]
 
     substitute-labels-to-values: func [
         {Replace labels in `code` block mathed commands from `commands-list` to values
@@ -68,76 +65,60 @@ translator: context [
     ]
 
 
-    source-to-block: func [
+   store-var: func [
+       {Store data label value and offset.
+       Process only template:
+       LABEL    SW  NUMBER.}
+
+       container            "data container"
+       data-string          "data string"
+       /local splited label value len bytes-skip last-skip
+   ][
+       splited: parse/all data-string "sw"
+       label: trim/all first splited
+       value: utils/int-to-word to-integer trim/all last splited
+       len: 2             ; for now length always 2 words
+       bytes-skip: 0
+
+       ; add hash key and value in separate lines
+       if 0 < length? container [ bytes-skip: len + get in last container 'skip]
+
+       append/only container label
+       append/only container make object! [val: value skip: bytes-skip]
+   ]
+
+
+   join-hash-data: func [
+       {Join data hash into raw binary.
+         e.g. we have hash ["foo" make object! [val: #{01}] "bar" make object! [val: #{0203}]]
+         and translate it to #{010203}.
+       }
+
+       hash-data "hash with data"
+       /local result
+   ][
+     result: copy #{}
+     forskip hash-data 2 [ append/only result get in second hash-data 'val]
+     result
+   ]
+
+
+    run: func [
        {Translate source assembler code to a block! of commands}
        source [string! file!] "source code"
-       /local lines code-blk data-blk line-num trimmed-line store-line labels
+       /local
+         lines
+         code-blk
+         data-blk
+         labels
+         mode
+         line-num
+         bytes
+         trimmed-line
+         code-wo-labels
+         full-processed-code
+         store-code
     ][
-       store-line: func [
-           {Store line inside resulting block}
-           container [block!] "container to store"
-           cmd_len [integer!] "command length"
-           cmd "command"
-       ][
-           bytes: bytes + cmd_len
-           cmd: trim/with cmd ":" ; remove last :
-           switch/default cmd_len [
-               0 [append container join join [] cmd bytes]
-
-               1 [append/only container join [] cmd]
-
-               3 [append/only container parse cmd ""]
-
-           ][
-               print ["this is error. len:"  cmd_len "command:" cmd]
-           ]
-       ]
-
-
-       store-var: func [
-           {Store data label value and offset.
-           Process only template:
-           LABEL    SW  NUMBER}
-
-           container            "data container"
-           data-string          "data string"
-           /local splited label value len bytes-skip last-skip
-       ][
-           splited: parse/all data-string "sw"
-           label: trim/all first splited
-           value: int-to-word to-integer trim/all last splited
-           len: 2             ; for now length always 2 words
-
-
-           ; add hash key and value in separate lines
-           either 0 < length? container [
-               last-skip: last container
-               bytes-skip: len + last-skip/skip
-           ][
-               bytes-skip: 0
-           ]
-           append/only container label
-           append/only container make object! [val: value skip: bytes-skip]
-       ]
-
-       join-hash-data: func [
-           {Join data hash into raw binary.
-            e.g. we have hash ["foo" make object! [val: #{01}] "bar" make object! [val: #{0203}]
-           }
-
-           hash-data "hash with data"
-           /local result entry
-       ][
-         result: copy #{}
-         forskip hash-data 2 [
-             entry: second hash-data
-             append/only result entry/val
-         ]
-         result
-       ]
-
-
-
        lines: parse/all source "^/"
        code-blk: copy []
        data-blk: to-hash []
@@ -145,6 +126,28 @@ translator: context [
        mode: none               ; one of 'code 'data
        line-num: 1
        bytes: 1
+
+       store-line: func [
+           {Store line inside resulting block. Used by `source-to-block`.}
+           container [block!] "container to store"
+           cmd-len [integer!] "command length"
+           cmd "command"
+           ; bytes global for this func
+       ][
+           bytes: bytes + cmd-len
+           cmd: trim/with cmd ":" ; remove last :
+           switch/default cmd-len [
+               0 [append container join join [] cmd bytes]
+
+               1 [append/only container join [] cmd]
+
+               3 [append/only container parse cmd none]
+
+           ][
+               make error! reform ["This is error. len:"  cmd-len "command:" cmd]
+           ]
+       ]
+
        foreach line lines [
            trimmed-line: parse/all trim line ";" ; cut off comments part
 
@@ -176,8 +179,6 @@ translator: context [
                               make error! reform ["Error in" mode "section. line #" line-num ": " line]
                           ]
                       ]
-
-
               ]
            ]
            line-num: line-num + 1
@@ -190,14 +191,7 @@ translator: context [
            print ["full-processed-code" probe full-processed-code]
        ]
 
-       ; TODO replace all labels to values in code
-       ; print ["Data section: " probe data-blk]
-       ;
        block-to-bytecode full-processed-code join-hash-data data-blk
-         ; substitute-labels-to-values
-         ;   substitute-labels-to-values code-blk to-hash labels opcodes/label-commands
-         ;   generate-offsets-for-data data-blk opcodes/data-manipulation-commands
-
     ]
 
 
@@ -209,7 +203,7 @@ translator: context [
        /local code op
     ][
         code: copy #{}
-        data: join int-to-word length? binary-data binary-data
+        data: join utils/int-to-word length? binary-data binary-data
         foreach line commands [
             op: first line
             any [
@@ -217,22 +211,12 @@ translator: context [
                  append code select list-of-commands op
               ]
               if found? find opcodes/three-byte-command-names op [
-                  append code join select list-of-commands op int-to-word to-integer second line
+                  append code join select list-of-commands op utils/int-to-word to-integer second line
               ]
            ]
         ]
         join data code
      ]
-
-
-    run: func [
-       {Translate source code to bytecode and pack it}
-       source [string! file!]   ; read file and not process inside source to block?
-       /local code-and-data code data
-    ][
-       source-to-block source
-    ]
-
 
  ]
 
