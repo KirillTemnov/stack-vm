@@ -1,43 +1,48 @@
-#!/usr/bin/env rebol
+#!/usr/bin/env rebol -cs
 
 REBOL [
     Title: "Translator for simple stack vitrual mashine"
     File: %translator.r
     Author: "Kirill Temnov"
     Date: 06/11/2015
-    Version: 0.2.0
     ]
 
 
 do %opcodes.r
+do %utils.r
 
 translator: context [
+    debug: false
 
-    one-byte-command: generate-one-byte-rules
-    two-byte-command: generate-two-byte-rules
-    label-rule: generate-label-rules
-
-    list-of-commands: opcodes
+    opcodes: make opcodes-instance []
+    utils: make utils-instance []
 
 
-    int-to-word: func [
-       {Convert integer number to a word (binary!)}
-       i [integer!] "source (positive) integer"
-    ][
-       debase/base copy/part skip to-hex i 4 4 16
-    ]
+    one-byte-command: opcodes/generate-one-byte-rules
+    three-byte-command: opcodes/generate-three-byte-rules
+    var-definition: opcodes/generate-var-definition
+    label-rule: opcodes/generate-label-rules
 
-    replace-labels: func [
-        {Replace labels to numbers in blocks or code}
+    list-of-commands: opcodes/opcodes
+
+
+
+    substitute-labels-to-values: func [
+        {Replace labels in `code` block mathed commands from `commands-list` to values
+         from `label-value-hash`.
+         This function places offset from begining of code or data in appropriate blocks
+         (depends on `code` value)
+        }
         code [block!]
-        labels [hash!]
+        label-value-hash [hash!]
+        commands-list [block!] "block of strings with command names"
         /local r cmd
     ][
         r: copy []
         foreach code-line code [
             cmd: first code-line
-            either found? find label-commands cmd [
-                append/only r join join [] cmd select labels second code-line
+            either found? find commands-list cmd [
+                append/only r join join [] cmd select label-value-hash second code-line
             ][
                 append/only r join [] code-line
             ]
@@ -45,37 +50,104 @@ translator: context [
         r
     ]
 
+    generate-offsets-for-data: func [
+        {Generate offsets for data and merge }
+        data-hash "hash with data and and object {val, skip}"
+        /local r obj
+    ][
+        r: to-hash []
+        forskip data-hash 2 [
+            append r first data-hash
+            obj: second data-hash
+            append r obj/skip
+        ]
+        r
+    ]
 
-    source-to-block: func [
+
+   store-var: func [
+       {Store data label value and offset.
+       Process only template:
+       LABEL    SW  NUMBER.}
+
+       container            "data container"
+       data-string          "data string"
+       /local splited label value len bytes-skip last-skip
+   ][
+       splited: parse/all data-string "sw"
+       label: trim/all first splited
+       value: utils/int-to-word to-integer trim/all last splited
+       len: 2             ; for now length always 2 words
+       bytes-skip: 0
+
+       ; add hash key and value in separate lines
+       if 0 < length? container [ bytes-skip: len + get in last container 'skip]
+
+       append/only container label
+       append/only container make object! [val: value skip: bytes-skip]
+   ]
+
+
+   join-hash-data: func [
+       {Join data hash into raw binary.
+         e.g. we have hash ["foo" make object! [val: #{01}] "bar" make object! [val: #{0203}]]
+         and translate it to #{010203}.
+       }
+
+       hash-data "hash with data"
+       /local result
+   ][
+     result: copy #{}
+     forskip hash-data 2 [ append/only result get in second hash-data 'val]
+     result
+   ]
+
+
+    run: func [
        {Translate source assembler code to a block! of commands}
        source [string! file!] "source code"
-       /local lines result line-num trimmed-line store-line labels
+       /local
+         lines
+         code-blk
+         data-blk
+         labels
+         mode
+         line-num
+         bytes
+         trimmed-line
+         code-wo-labels
+         full-processed-code
+         store-code
     ][
+       lines: parse/all source "^/"
+       code-blk: copy []
+       data-blk: to-hash []
+       labels: copy []
+       mode: none               ; one of 'code 'data
+       line-num: 1
+       bytes: 1
+
        store-line: func [
-           {Store line inside resulting block}
+           {Store line inside resulting block. Used by `source-to-block`.}
            container [block!] "container to store"
-           cmd_len [integer!] "command length"
+           cmd-len [integer!] "command length"
            cmd "command"
+           ; bytes global for this func
        ][
-           bytes: bytes + cmd_len
+           bytes: bytes + cmd-len
            cmd: trim/with cmd ":" ; remove last :
-           switch/default cmd_len [
+           switch/default cmd-len [
                0 [append container join join [] cmd bytes]
 
                1 [append/only container join [] cmd]
 
-               3 [append/only container parse cmd ""]
+               3 [append/only container parse cmd none]
 
            ][
-               print ["this is error. len:"  cmd_len "command:" cmd]
+               make error! reform ["This is error. len:"  cmd-len "command:" cmd]
            ]
        ]
 
-       lines: parse/all source "^/"
-       result: copy []
-       labels: copy []
-       line-num: 1
-       bytes: 1
        foreach line lines [
            trimmed-line: parse/all trim line ";" ; cut off comments part
 
@@ -83,69 +155,76 @@ translator: context [
            if (0 < length? trimmed-line) [ ; this is ugly part
               if (0 < length? first trimmed-line) [
                   trimmed-line: first trimmed-line
-                  unless parse trimmed-line [
-                      [copy v label-rule end (store-line labels 0 v)] |
-
-                      [copy v one-byte-command end (store-line result 1 v)] |
-
-                      [copy v two-byte-command end (store-line result 3 v)]
-                  ][
-                      make error! reform ["error in line #" line-num ": " line]
+                  if debug [
+                      print ["L:" trimmed-line "{ " probe mode "}"]
                   ]
-               ]
+                  either 'code = mode [
+                          parse trimmed-line [ ; todo add /all for parse
+                              [copy v label-rule end (store-line labels 0 v)] |
+                              [copy v one-byte-command end (store-line code-blk 1 v)] |
+                              [copy v three-byte-command end (store-line code-blk 3 v)]
+                          ][
+                              make error! reform ["Error in code section. line #" line-num ": " line]
+                          ]
+                      ][
+                          parse/all trimmed-line [
+                              [copy v var-definition end (store-var data-blk v)] |
+
+                              ; end of code section
+                              [".code" (mode: 'code if debug [print ["in code mode"]])] |
+
+                              ; end of data section
+                              [".data" (mode: 'data if debug [print ["in data mode"]])]
+                          ][
+                              make error! reform ["Error in" mode "section. line #" line-num ": " line]
+                          ]
+                      ]
+              ]
            ]
            line-num: line-num + 1
        ]
 
-       ; replace all labels to values in code
-       replace-labels result to-hash labels
+       code-wo-labels: substitute-labels-to-values code-blk to-hash labels opcodes/label-commands
+       full-processed-code: substitute-labels-to-values code-wo-labels generate-offsets-for-data data-blk opcodes/data-manipulation-commands
+       if debug [
+           print ["code-wo-labels" probe code-wo-labels]
+           print ["full-processed-code" probe full-processed-code]
+       ]
+
+       block-to-bytecode full-processed-code join-hash-data data-blk
     ]
 
 
     block-to-bytecode: func [
-       {Translate commands from block to bytecode}
+       {Translate commands and binary-data  to bytecode}
+
        commands [block!]
+       binary-data
        /local code op
     ][
         code: copy #{}
-        data: copy #{}
+        data: join utils/int-to-word length? binary-data binary-data
         foreach line commands [
             op: first line
             any [
-              if found? find one-byte-command-names op [
+              if found? find opcodes/one-byte-command-names op [
                  append code select list-of-commands op
               ]
-              if found? find two-byte-command-names op [
-                  append code join select list-of-commands op int-to-word to-integer second line
+              if found? find opcodes/three-byte-command-names op [
+                  append code join select list-of-commands op utils/int-to-word to-integer second line
               ]
            ]
         ]
-        join join [] code data
+        join data code
      ]
-
-
-    run: func [
-       {Translate source code to bytecode and pack it}
-       source [string! file!]   ; read file and not process inside source to block?
-       /local code-and-data code data
-    ][
-
-       code-and-data: block-to-bytecode source-to-block source
-
-       code: first code-and-data
-       data: second code-and-data
-       join join int-to-word length? data data code
-    ]
-
 
  ]
 
-args: system/options/args
 
 ; we have commands to translate
-if args [
+if system/options/args [
     print
-    fname: first args
+    fname: first system/options/args
     t: make translator []
 
     if error?
