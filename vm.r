@@ -16,15 +16,18 @@ vitrual-mashine: context [
     debug: false                ; debug flag
     halt-flag: false            ; halt flag, set and reset by vm functions
 
-    data-stack: []
-    return-stack: []
-    memory: #{}                        ; program memory
-    code: #{}                          ; program code, loaded in vm
+    data-stack: []              ; vm data-stack. instruction applied on this stack values
+    return-stack: []            ; store return points (loaded in `registers/pc` on call `retn`)
+    memory: #{}                 ; program memory
+    code: #{}                   ; program code, loaded in vm
     registers: make object! [
-        pc: 1                          ; program count
-        cf: 0                          ; carry flag
-        zf: 0                          ; zero flag
+        pc: 1                   ; program count
+        cf: 0                   ; carry flag
+        zf: 0                   ; zero flag
         ]
+
+    one-byte-instructions: opcodes/generate-one-byte-instructions
+    three-byte-instructions: opcodes/generate-three-byte-instructions
 
     reset: does [ {Reset mashine state}
         if debug [print "reset mashine"] ;need to reset code?
@@ -88,7 +91,6 @@ vitrual-mashine: context [
         insert data-stack utils/get-word memory 1 + utils/word-to-int offset
     ]
 
-
     stor-to-memory: func [
         {Store value from top of stack to memory}
         offset [binary!] "offset from start of memory (zero-based)"
@@ -97,27 +99,21 @@ vitrual-mashine: context [
        utils/put-word memory utils/word-to-int offset data-stack/1
     ]
 
-
     call-proc: func [           ; TODO reserve local stack for data
         {Call remote proc}
-        addr "remote proc addr"
+        addr [binary!] "remote proc addr"
     ][
         append return-stack registers/pc
         registers/pc: utils/word-to-int addr
         resume
     ]
 
-    proc-return: does [
-        {Return from remote proc. Throws error if return stack is empty}
+    proc-return: does [ {Return from remote proc. Throws error if return stack is empty}
         registers/pc: take/last return-stack
         resume
     ]
-
-    ; end of
+    ; end of vm instructions
     ; --------------------------------------------------------------------------------
-
-    one-byte-instructions: opcodes/generate-one-byte-instructions
-    three-byte-instructions: opcodes/generate-three-byte-instructions
 
     get-instruction-size: func [
         {Get size of instruction in bytes}
@@ -125,18 +121,16 @@ vitrual-mashine: context [
     ][
         ; one byte - command, 2 bytes - data
         if found? find three-byte-instructions instruction  [return 3]
-        ;if none <> find one-byte-instructions instruction  [return 1]
-        return 1                        ; unknown instruction size: 1 byte
+        return 1                        ; any other case - instruction size: 1 byte
     ]
 
     apply-instruction: func [
-        {Apply single insruction.
+        {Apply single insruction from program code, by offset, stored in registers/pc.
          return true if instruction valid and not halt,
          otherwise, return false}       ;
         /local op size arg
     ][
-        if error?
-         try [op: to-binary to-char pick code registers/pc]
+        if error? try [op: to-binary to-char pick code registers/pc]
         [
             print "Reach end of code block."
             return false
@@ -144,15 +138,14 @@ vitrual-mashine: context [
 
         size: get-instruction-size op
         arg: none
-        if size > 1 [
-            arg: utils/get-word code (registers/pc + 1)
-        ]
+        if size > 1 [arg: utils/get-word code (registers/pc + 1)]
+        registers/pc: registers/pc + size
+
         if debug [
             print ["calling" select opcodes/opcode-names op "{" arg "}" "with size" size]
             print ["PC: " registers/pc "^/"]
         ]
 
-        registers/pc: registers/pc + size
         switch/default select opcodes/opcode-names op [
             "nop" []
 
@@ -198,30 +191,26 @@ vitrual-mashine: context [
                 halt-flag: true
                 return false
             ]
-        ]
-        [
+        ][
             make error! rejoin ["COMMAND " op " NOT FOUND!"]
             return false
         ]
-        return true
-
+        true
     ]
 
     split-code-and-data: func [
         {Split binary sequence into code and data
          first word in binary sequence is length of data section in BYTES (N),
          code data starts after N + 1 words and ends at end of sequence}
-
         data [binary!]
         /local size code script-data word-size
-        ][
+    ][
         word-size: 2            ; word size in bytes
         size: utils/word-to-int utils/get-word data 1
         code: copy/part skip data size + word-size length? data
         script-data: copy/part skip data word-size size
         do remold [script-data code]
     ]
-
 
     run: func [
         {Execute program in virtual mashine}
@@ -232,7 +221,6 @@ vitrual-mashine: context [
         code-and-data: split-code-and-data program
         memory: first code-and-data
         code: second code-and-data
-
         resume
     ]
 
@@ -245,5 +233,4 @@ vitrual-mashine: context [
         ]
         true
     ]
-
 ]
