@@ -25,8 +25,6 @@ translator: context [
 
     list-of-commands: opcodes/opcodes
 
-
-
     substitute-labels-to-values: func [
         {Replace labels in `code` block mathed commands from `commands-list` to values
          from `label-value-hash`.
@@ -187,8 +185,9 @@ translator: context [
        code-wo-labels: substitute-labels-to-values code-blk to-hash labels opcodes/label-commands
        full-processed-code: substitute-labels-to-values code-wo-labels generate-offsets-for-data data-blk opcodes/data-manipulation-commands
        if debug [
-           print ["code-wo-labels" probe code-wo-labels]
-           print ["full-processed-code" probe full-processed-code]
+           print ["code-wo-labels" mold code-wo-labels]
+           print ["full-processed-code" mold full-processed-code]
+           print ["labels" mold labels]
        ]
 
        block-to-bytecode full-processed-code join-hash-data data-blk
@@ -219,7 +218,6 @@ translator: context [
      ]
 
  ]
-
 
 ; we have commands to translate
 if system/options/args [
