@@ -6,6 +6,7 @@ REBOL [
     ]
 
 do %spec.r
+do %../vm.r
 do %../utils.r
 
 utils: make utils-instance []
@@ -34,17 +35,19 @@ test/assert [equal? #{2233} utils/get-word #{00112233} 3]
 
 ; TODO
 ; this part not work, strange ...
-; test/assert [equal? [f d] vm/swap-stack-values [d f]]
-; test/assert [equal? [b a] vm/swap-stack-values [a b]]
-; test/assert [equal? [1 0] vm/swap-stack-values [0 1]]
-; test/assert [equal? [bar foo buzz] vm/swap-stack-values [foo bar buzz]]
-; test/assert [equal? [none none] vm/swap-stack-values []]
-; test/assert [equal? [none fuzz] vm/swap-stack-values [fuzz]]
+; test/assert [equal? [f d] utils/swap-stack-values [d f]]
+; test/assert [equal? [b a] utils/swap-stack-values [a b]]
+; test/assert [equal? [1 0] utils/swap-stack-values [0 1]]
+; test/assert [equal? [bar foo buzz] utils/swap-stack-values [foo bar buzz]]
+; test/assert [equal? [none none] utils/swap-stack-values []]
+; test/assert [equal? [none fuzz] utils/swap-stack-values [fuzz]]
 
-; test/assert [equal? [2] vm/with-one-arg-do [1] func [z] [z + 1]]
-; test/assert [equal? [-44] vm/with-one-arg-do [1] func [z] [z - 45]]
-
-; test/assert [equal? [15] vm/with-two-args-do [7 8] func [a b] [a + b]]
-; test/assert [equal? [455] vm/with-two-args-do [35 13] func [a ] [a * b]]
+; use [vm] [
+;     vm: make vitrual-mashine []
+;     test/assert [equal? [2] utils/with-one-arg-do [#{0001}] :vm/dec]
+;     test/assert [equal? [1] utils/with-one-arg-do [1] :vm/inc]
+; ]
+; test/assert [equal? [15] utils/with-two-args-do [7 8] func [a b] [a + b]]
+; test/assert [equal? [455] utils/with-two-args-do [35 13] func [a ] [a * b]]
 
 test/stat
