@@ -76,8 +76,8 @@ utils-instance: context [
             first-byte: to-binary to-char pick data-raw offset
             second-byte: to-binary to-char pick data-raw offset + 1
         ][
-            print "Error fetching word"
-            return #{0000}              ;
+            print ["Error fetching word at" offset]
+            return #{0000}              ; TODO refactor this code for buble errors
         ]
         join first-byte second-byte     ; big endian
     ]
