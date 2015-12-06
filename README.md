@@ -1,6 +1,6 @@
 # Stack virtual mashine
 
-Stack virtual mashine, that supports simple stacking operations, impolemented in Rebol 2.
+Stack virtual mashine, that supports simple stacking operations, implemented in Rebol 2.
 
 ## Running
 
