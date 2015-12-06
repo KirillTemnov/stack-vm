@@ -157,6 +157,7 @@ vitrual-mashine: context [
         if error? try [op: to-binary to-char pick code registers/pc]
         [
             print "Reach end of code block."
+            halt-flag: true
             return false
         ]
 
