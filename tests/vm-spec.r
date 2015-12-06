@@ -19,14 +19,15 @@ use [test-vm] [
         memory: #{123456789009874321}
         return-stack: [#{0001} #{0002} #{0003}]
     ]
+    test-vm/registers/pc: 200
+    test-vm/registers/zf: 1
     test-vm/reset
-    test/assert [
-        and and and
-        equal? false test-vm/halt-flag
-        equal? [] test-vm/data-stack
-        equal? #{} test-vm/memory
-        equal? [] test-vm/return-stack
-    ]
+    test/assert [equal?
+        [false [] #{} []]
+        do remold [test-vm/halt-flag test-vm/data-stack test-vm/memory test-vm/return-stack]]
+
+    ; test registers
+    test/assert [equal? [1 0] do remold [test-vm/registers/pc test-vm/registers/zf]]
 ]
 
 ; inc
@@ -104,11 +105,35 @@ use [test-vm] [
     test/assert [equal? 12 test-vm/registers/pc]
 ]
 
+; jump-if-cond
+use [test-vm] [
+    ; we don't have code here, so, we set `halt-flag` to prevent code cycling
+    test-vm: make vitrual-mashine [halt-flag: true]
+    test-vm/registers/pc: 50
+    test-vm/registers/zf: 0
+
+    test-vm/jump-if-cond #{00E7}
+    test/assert [equal? 231 test-vm/registers/pc] ; jump
+    test-vm/jump-if-cond/zf #{000C} 1
+    test/assert [equal? 231 test-vm/registers/pc] ; don't jump, because zf is 0
+    test-vm/jump-if-cond/zf #{0008} 0
+    test/assert [equal? 8 test-vm/registers/pc] ; jump
+
+    test-vm/registers/zf: 1
+    test-vm/jump-if-cond/zf #{0019} 1
+    test/assert [equal? 25 test-vm/registers/pc] ; jump
+    test-vm/jump-if-cond/zf #{0F0A} 0
+    test/assert [equal? 25 test-vm/registers/pc] ; don't jump jump
+]
+
 ; get-instruction-size / see instructions in opcodes
 test/assert [equal? 3 vm/get-instruction-size #{02}]
 test/assert [equal? 3 vm/get-instruction-size #{10}]
 test/assert [equal? 3 vm/get-instruction-size #{0E}]
 test/assert [equal? 3 vm/get-instruction-size #{0F}]
+test/assert [equal? 3 vm/get-instruction-size #{20}]
+test/assert [equal? 3 vm/get-instruction-size #{21}]
+test/assert [equal? 3 vm/get-instruction-size #{22}]
 test/assert [equal? 1 vm/get-instruction-size #{00}]
 test/assert [equal? 1 vm/get-instruction-size #{01}]
 test/assert [equal? 1 vm/get-instruction-size #{03}]
