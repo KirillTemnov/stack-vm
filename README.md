@@ -81,6 +81,9 @@ Comments strated from `;` and passed till the end of line.
 | `stor` | Store first value in data-stack into variable in memory |
 | `call` | Call subroutine by name |
 | `retn` | Return from subroutine |
+| `jmp`  | Unconditional jump to label |
+| `jz`   | Jump to label if zero flag is set (`registers/zf = 1`) |
+| `jnz`  | Jump to label if zero flag is not set (`registers/zf = 0`) |
 | `stat` | Show vm status on console. Shows data-stack, memory and registers |
 | `halt` | Halt mashine - end of a program |
 
