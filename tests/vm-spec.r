@@ -9,7 +9,6 @@ do %spec.r
 do %../vm.r
 
 vm: make vitrual-mashine []
-
 test: make test-suite [name: "VM tests"]
 
 ; reset
@@ -50,19 +49,17 @@ test/assert [equal? #{8001} vm/sub #{8000} #{FFFF}] ; carry flag
 test/assert [equal? #{0167} vm/sub #{0300} #{0199}]
 test/assert [equal? #{FF1D} vm/sub #{0017} #{00FA}] ; carry flag
 
-
+; load-to-stack
 use [test-vm] [
     test-vm: make vitrual-mashine [memory: #{0011223344}]
-
-    ; load-to-stack
     test-vm/load-to-stack #{0000}
     test/assert [equal? [#{0011}] test-vm/data-stack]
     test-vm/load-to-stack #{0003}
     test/assert [equal? [#{3344} #{0011}] test-vm/data-stack]
 ]
 
+; stor-to-memory
 use [test-vm] [
-    ; stor to memory
     test-vm: make vitrual-mashine [
         memory: #{0011223344}
         data-stack: [#{AABB} #{DDEF}]
@@ -74,12 +71,38 @@ use [test-vm] [
     test/assert [equal? #{AADDEF3344} test-vm/memory]
 ]
 
-
-
 ; call-proc
+use [test-vm] [
+    ; we don't have code here, so, we set `halt-flag` to prevent code cycling
+    test-vm: make vitrual-mashine [halt-flag: true]
+    test-vm/registers/pc: 70
+    test-vm/call-proc #{0025}
+    test/assert [
+        and
+        equal? [70] test-vm/return-stack
+        equal?  37  test-vm/registers/pc
+    ]
+
+    test-vm/call-proc #{0010}
+    test/assert [
+        and
+        equal? [70 37] test-vm/return-stack
+        equal? 16 test-vm/registers/pc
+    ]
+]
 
 ; proc-return
-
+use [test-vm] [
+    ; we don't have code here, so, we set `halt-flag` to prevent code cycling
+    test-vm: make vitrual-mashine [halt-flag: true]
+    test-vm/return-stack: [12 25 50]
+    test-vm/proc-return
+    test/assert [equal? 50 test-vm/registers/pc]
+    test-vm/proc-return
+    test/assert [equal? 25 test-vm/registers/pc]
+    test-vm/proc-return
+    test/assert [equal? 12 test-vm/registers/pc]
+]
 
 ; get-instruction-size / see instructions in opcodes
 test/assert [equal? 3 vm/get-instruction-size #{02}]
@@ -103,14 +126,13 @@ test/assert [equal? 1 vm/get-instruction-size #{11}]
 test/assert [equal? 1 vm/get-instruction-size #{98}]
 test/assert [equal? 1 vm/get-instruction-size #{88}]
 
-; apply-instruction
+;; apply-instruction not tested here because of all its parst are tested in other unit tests.
 
 ; split-code-and-data
 test/assert [equal? [#{} #{0200}] vm/split-code-and-data #{00000200}]
 test/assert [equal? [#{AAAABBBB} #{0100}] vm/split-code-and-data #{0004AAAABBBB0100}]
 
-; run
-
-; resume
+;; run not tested here because of all its parst are tested in other unit tests.
+; resume not tested here because of all its parst are tested in other unit tests.
 
 test/stat
