@@ -32,7 +32,6 @@ opcodes-instance: context [
 
     opcodes: to-hash [
         "nop"     #{00}
-        "pop"     #{01}
         "push"    #{02}
         "add"     #{03}
         "sub"     #{04}

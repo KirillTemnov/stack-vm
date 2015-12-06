@@ -79,7 +79,6 @@ test/assert [equal? #{01020A} t/join-hash-data copy h-data]
 ; block-to-bytecode
 
 test/assert [equal? join-with-data "nop"  t/block-to-bytecode [["nop"]]  #{}]
-test/assert [equal? join-with-data "pop"  t/block-to-bytecode [["pop"]]  #{}]
 test/assert [equal? join-with-data "add"  t/block-to-bytecode [["add"]]  #{}]
 test/assert [equal? join-with-data "sub"  t/block-to-bytecode [["sub"]]  #{}]
 test/assert [equal? join-with-data "and"  t/block-to-bytecode [["and"]]  #{}]
